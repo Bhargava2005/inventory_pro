@@ -1,0 +1,92 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+
+import connectDB from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import storeRoutes from './routes/storeRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import saleRoutes from './routes/saleRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+import { errorHandler, notFound } from './middleware/errorHandler.js';
+
+// Connect to MongoDB
+connectDB();
+
+const app = express();
+
+// ─── Security Middleware ──────────────────────────────────────────────────────
+app.use(helmet()); // Sets secure HTTP headers
+
+// Rate limiting — max 100 requests per 15 minutes per IP
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
+
+// Stricter rate limit for auth routes — max 10 per 15 min
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many login attempts, please try again later.' },
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// ─── Body Parsing ─────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ─── Logging ──────────────────────────────────────────────────────────────────
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
+
+// ─── Health Check ─────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Inventory Pro API is running',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/stores', storeRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/sales', saleRoutes);
+app.use('/api/reports', reportRoutes);
+
+// ─── Error Handling ───────────────────────────────────────────────────────────
+app.use(notFound);
+app.use(errorHandler);
+
+// ─── Start Server ─────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+  console.log(`📡 API: http://localhost:${PORT}/api`);
+});
