@@ -1,4 +1,6 @@
+import ExcelJS from 'exceljs';
 import Product from '../models/Product.js';
+import Category from '../models/Category.js';
 
 // @desc   Get all products (search, filter, sort, paginate)
 // @route  GET /api/products
@@ -176,6 +178,80 @@ export const deleteProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
     res.status(200).json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Import products from Excel
+// @route   POST /api/products/import
+// @access  Private (Admin, Manager)
+export const importProducts = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Please upload an Excel file' });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    const worksheet = workbook.getWorksheet(1);
+
+    const productsToImport = [];
+    const errors = [];
+
+    // Skip header row
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const [_, name, sku, categoryName, price, quantity, unit, description] = row.values;
+
+      if (!name || !sku || !price) {
+        errors.push(`Row ${rowNumber}: Name, SKU, and Price are required`);
+        return;
+      }
+
+      productsToImport.push({
+        name,
+        sku: sku.toString(),
+        categoryName,
+        price: Number(price),
+        quantity: Number(quantity) || 0,
+        unit: unit || 'pcs',
+        description: description || '',
+      });
+    });
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    }
+
+    const results = { created: 0, updated: 0 };
+
+    for (const item of productsToImport) {
+      let categoryId = null;
+      if (item.categoryName) {
+        let category = await Category.findOne({ name: new RegExp(`^${item.categoryName}$`, 'i') });
+        if (!category) {
+          category = await Category.create({ name: item.categoryName });
+        }
+        categoryId = category._id;
+      }
+
+      const existingProduct = await Product.findOne({ sku: item.sku });
+      if (existingProduct) {
+        await Product.findByIdAndUpdate(existingProduct._id, { ...item, category: categoryId });
+        results.updated++;
+      } else {
+        await Product.create({ ...item, category: categoryId });
+        results.created++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Import complete: ${results.created} created, ${results.updated} updated`,
+      data: results,
+    });
   } catch (error) {
     next(error);
   }

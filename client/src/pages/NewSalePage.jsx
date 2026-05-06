@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { 
   Search, ShoppingCart, Trash2, Plus, Minus, 
-  CreditCard, Banknote, User, Phone, X, Loader2, AlertCircle 
+  CreditCard, Banknote, User, Phone, X, Loader2, AlertCircle, Scan 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import useProductStore from '../store/productStore.js';
 import useSaleStore from '../store/saleStore.js';
 import { generateInvoicePDF } from '../utils/pdfGenerator.js';
@@ -16,10 +17,32 @@ export default function NewSalePage() {
   const [cart, setCart] = useState([]);
   const [customer, setCustomer] = useState({ name: '', phone: '' });
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (showScanner) {
+      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      scanner.render((decodedText) => {
+        const product = products.find(p => p.sku === decodedText);
+        if (product) {
+          addToCart(product);
+          toast.success(`Added ${product.name}`);
+          setShowScanner(false);
+          scanner.clear();
+        } else {
+          toast.error("Product not found");
+        }
+      }, (error) => {
+        // console.warn(error);
+      });
+
+      return () => scanner.clear();
+    }
+  }, [showScanner, products]);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -109,7 +132,25 @@ export default function NewSalePage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-primary-100 text-primary-600 rounded-lg hover:bg-primary-200"
+              title="Scan Barcode"
+            >
+              <Scan className="w-4 h-4" />
+            </button>
           </div>
+
+          {showScanner && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-md relative">
+                <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+                <h3 className="text-lg font-bold mb-4">Scan Barcode</h3>
+                <div id="reader" className="overflow-hidden rounded-xl"></div>
+                <p className="mt-4 text-center text-sm text-gray-500">Position the barcode within the box to scan</p>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pr-1">
             {isLoading ? (

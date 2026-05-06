@@ -120,10 +120,10 @@ cd client && npm run dev
 ## 📋 Development Phases
 
 - [x] **Phase 1** — Foundation: Auth system, JWT, MongoDB, React setup
-- [ ] **Phase 2** — Product CRUD, Excel import/export, UI redesign
-- [ ] **Phase 3** — User roles, multi-store management
-- [ ] **Phase 4** — Analytics dashboard, barcode scanner, PDF export
-- [ ] **Phase 5** — PWA, testing, security audit, client delivery
+- [x] **Phase 2** — Product & Category CRUD, Stock tracking
+- [x] **Phase 3** — Multi-store management, User Roles
+- [x] **Phase 4** — POS Sales Engine, Analytics Dashboard
+- [x] **Phase 5** — PDF Invoices, Excel Exports, Reporting
 
 ---
 
@@ -141,14 +141,27 @@ cd client && npm run dev
 
 ## 📦 Deployment
 
-### Frontend (Vercel)
+### Push to Your GitHub
+1. Create a new empty repository on GitHub.
+2. Run the following in your terminal:
 ```bash
-cd client && npm run build
-# Deploy dist/ to Vercel
+git remote add origin <your-github-repo-url>
+git branch -M main
+git push -u origin main
 ```
 
-### Backend (Render / Railway)
-Set environment variables and deploy from GitHub.
+### Frontend (Vercel)
+1. Import the repository into Vercel.
+2. Set Root Directory to `client`.
+3. Build command: `npm run build`.
+4. Output Directory: `dist`.
+
+### Backend (Render)
+1. Create a new Web Service on Render.
+2. Root Directory: `server`.
+3. Build command: `npm install`.
+4. Start command: `node src/index.js`.
+5. Set environment variables in the dashboard.
 
 ### Database
 Use MongoDB Atlas free tier — M0 cluster supports up to 512MB.

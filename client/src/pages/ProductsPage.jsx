@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import {
   Plus, Search, Filter, Pencil, Trash2, Package,
   ChevronLeft, ChevronRight, Loader2, AlertTriangle,
-  MinusCircle, PlusCircle, X, Download,
+  MinusCircle, PlusCircle, X, Download, FileUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useProductStore from '../store/productStore.js';
 import useAuthStore from '../store/authStore.js';
 import ProductModal from '../components/products/ProductModal.jsx';
+import api from '../api/client.js';
 
 const statusColors = {
   ok: 'badge-green',
@@ -120,6 +121,29 @@ export default function ProductsPage() {
   const [editProduct, setEditProduct] = useState(null);
   const [stockProduct, setStockProduct] = useState(null);
   const [deleteProduct, setDeleteProductState] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsImporting(true);
+    try {
+      const { data } = await api.post('/products/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success(data.message);
+      fetchProducts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Import failed');
+    } finally {
+      setIsImporting(false);
+      e.target.value = null; // Reset input
+    }
+  };
 
   const canEdit = ['admin', 'manager'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
@@ -144,12 +168,29 @@ export default function ProductsPage() {
             rel="noopener noreferrer"
             className="btn-secondary"
           >
-            <Download className="w-4 h-4" /> Export Excel
+            <Download className="w-4 h-4" /> Export
           </a>
           {canEdit && (
-            <button onClick={() => { setEditProduct(null); setShowModal(true); }} className="btn-primary">
-              <Plus className="w-4 h-4" /> Add Product
-            </button>
+            <>
+              <input 
+                type="file" 
+                id="excel-import" 
+                className="hidden" 
+                accept=".xlsx, .xls"
+                onChange={handleImport}
+              />
+              <button 
+                onClick={() => document.getElementById('excel-import').click()}
+                disabled={isImporting}
+                className="btn-secondary"
+              >
+                {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                Import
+              </button>
+              <button onClick={() => { setEditProduct(null); setShowModal(true); }} className="btn-primary">
+                <Plus className="w-4 h-4" /> Add Product
+              </button>
+            </>
           )}
         </div>
       </div>
