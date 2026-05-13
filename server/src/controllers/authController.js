@@ -103,10 +103,14 @@ export const login = async (req, res, next) => {
 
     const { identifier, password, storeCode, intendedRole } = req.body; // identifier = email OR username
 
-    let query = {
+    // Trim inputs to avoid hidden space errors
+    const cleanIdentifier = identifier.trim();
+    const cleanStoreCode = storeCode?.trim();
+
+    const query = {
       $or: [
-        { email: identifier.toLowerCase() },
-        { username: identifier.toLowerCase() },
+        { email: cleanIdentifier.toLowerCase() },
+        { username: { $regex: new RegExp(`^${cleanIdentifier}$`, 'i') } },
       ],
     };
 
@@ -118,9 +122,10 @@ export const login = async (req, res, next) => {
     }
 
     // If storeCode is provided, we must find the store first
-    if (storeCode) {
-      const store = await Store.findOne({ code: storeCode.toUpperCase() });
+    if (cleanStoreCode) {
+      const store = await Store.findOne({ code: cleanStoreCode.toUpperCase() });
       if (!store) {
+        console.error('Login Error: Store not found for code:', cleanStoreCode);
         return res.status(401).json({
           success: false,
           message: 'Invalid Store ID',
@@ -128,6 +133,8 @@ export const login = async (req, res, next) => {
       }
       query.storeId = store._id;
     }
+
+    console.log('Login Attempt - Query:', JSON.stringify(query, null, 2));
 
     // Find user by email or username, include password field
     const user = await User.findOne(query).select('+password');
@@ -168,6 +175,9 @@ export const login = async (req, res, next) => {
       storeId: user.storeId,
       loginTime: new Date(),
     });
+
+    // Populate storeId to get the store code for the frontend
+    await user.populate('storeId', 'name location code');
 
     sendTokenResponse(user, 200, res);
   } catch (error) {

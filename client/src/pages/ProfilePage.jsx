@@ -112,7 +112,7 @@ export default function ProfilePage() {
   });
 
   const handleCopyCode = async () => {
-    const codeToCopy = user?.storeId?.code || 'MW-01';
+    const codeToCopy = user?.storeId?.code || 'MAIN-01';
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(codeToCopy);
@@ -205,9 +205,8 @@ export default function ProfilePage() {
                 <p className="text-xs opacity-80 uppercase font-bold tracking-wider mb-1">Store Name</p>
                 <p className="text-lg font-medium mb-4">{user?.storeId?.name || 'Main Warehouse'}</p>
                 
-                <p className="text-xs opacity-80 uppercase font-bold tracking-wider mb-1">Store ID (Share with Staff)</p>
                 <div className="flex items-center justify-between bg-white/10 p-3 rounded-xl border border-white/20">
-                  <code className="text-xl font-bold tracking-widest">{user?.storeId?.code || 'MW-01'}</code>
+                  <code className="text-xl font-bold tracking-widest">{user?.storeId?.code || 'MAIN-01'}</code>
                   <button 
                     onClick={handleCopyCode}
                     className="p-2 hover:bg-white/20 rounded-lg transition-colors"
