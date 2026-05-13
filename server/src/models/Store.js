@@ -7,6 +7,7 @@ const storeSchema = new mongoose.Schema(
       required: [true, 'Store name is required'],
       trim: true,
       unique: true,
+      maxlength: [200, 'Name cannot exceed 200 characters'],
     },
     code: {
       type: String,

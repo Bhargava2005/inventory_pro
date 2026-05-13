@@ -6,13 +6,11 @@ const categorySchema = new mongoose.Schema(
       type: String,
       required: [true, 'Category name is required'],
       trim: true,
-      unique: true,
       minlength: [2, 'Name must be at least 2 characters'],
-      maxlength: [50, 'Name cannot exceed 50 characters'],
+      maxlength: [200, 'Name cannot exceed 200 characters'],
     },
     slug: {
       type: String,
-      unique: true,
       lowercase: true,
     },
     description: {
@@ -33,9 +31,18 @@ const categorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+    },
   },
   { timestamps: true }
 );
+
+// Compound unique index: Name and Slug must be unique per store
+categorySchema.index({ name: 1, storeId: 1 }, { unique: true });
+categorySchema.index({ slug: 1, storeId: 1 }, { unique: true });
 
 // Auto-generate slug from name before saving
 categorySchema.pre('save', function (next) {

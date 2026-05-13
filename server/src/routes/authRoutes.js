@@ -6,6 +6,9 @@ import {
   getMe,
   updateProfile,
   changePassword,
+  suggestUsername,
+  logout,
+  heartbeat,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -44,10 +47,13 @@ const loginValidation = [
 // Public routes
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
+router.get('/suggest-username', suggestUsername);
 
 // Protected routes
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
+router.post('/logout', protect, logout);
+router.post('/heartbeat', protect, heartbeat);
 
 export default router;

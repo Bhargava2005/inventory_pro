@@ -13,6 +13,12 @@ import storeRoutes from './routes/storeRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import saleRoutes from './routes/saleRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import settingRoutes from './routes/settingRoutes.js';
+import employeeRoutes from './routes/employeeRoutes.js';
+import branchRoutes from './routes/branchRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import announcementRoutes from './routes/announcementRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // Connect to MongoDB
@@ -23,10 +29,10 @@ const app = express();
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet()); // Sets secure HTTP headers
 
-// Rate limiting — max 100 requests per 15 minutes per IP
+// Rate limiting — max 1000 requests per 15 minutes per IP (increased for development)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -76,9 +82,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/stores', storeRoutes);
+app.use('/api/branches', branchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/settings', settingRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFound);

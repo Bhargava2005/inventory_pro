@@ -1,5 +1,24 @@
 import mongoose from 'mongoose';
 
+const statusHistorySchema = new mongoose.Schema({
+  status: {
+    type: String,
+    required: true,
+  },
+  reason: {
+    type: String,
+    trim: true,
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 const saleItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
@@ -7,6 +26,7 @@ const saleItemSchema = new mongoose.Schema({
     required: true,
   },
   name: String, // Snapshot of name at time of sale
+  brand: String, // Snapshot of brand at time of sale
   quantity: {
     type: Number,
     required: true,
@@ -20,6 +40,27 @@ const saleItemSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  isDamaged: {
+    type: Boolean,
+    default: false,
+  },
+  isExchange: {
+    type: Boolean,
+    default: false,
+  },
+  isSample: {
+    type: Boolean,
+    default: false,
+  },
+  isWrongProduct: {
+    type: Boolean,
+    default: false,
+  },
+  statusReason: {
+    type: String,
+    trim: true,
+  },
+  statusHistory: [statusHistorySchema],
 });
 
 const saleSchema = new mongoose.Schema(
@@ -50,11 +91,18 @@ const saleSchema = new mongoose.Schema(
     customer: {
       name: { type: String, trim: true },
       phone: { type: String, trim: true },
+      companyName: { type: String, trim: true },
+      addressLine: { type: String, trim: true },
     },
     storeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Store',
       required: true,
+    },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
     },
     soldBy: {
       type: mongoose.Schema.Types.ObjectId,

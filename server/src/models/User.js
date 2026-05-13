@@ -49,6 +49,11 @@ const userSchema = new mongoose.Schema(
       ref: 'Store',
       default: null,
     },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -57,13 +62,22 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    lastLogout: {
+      type: Date,
+      default: null,
+    },
     profileImage: {
       type: String,
       default: null,
     },
+    lastActive: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
-    timestamps: true, // adds createdAt, updatedAt automatically
+    timestamps: true,
+    discriminatorKey: 'role', // This enables the strict role separation
   }
 );
 
@@ -88,4 +102,35 @@ userSchema.methods.toSafeObject = function () {
 };
 
 const User = mongoose.model('User', userSchema);
+
+// ─── Role Discriminators ─────────────────────────────────────────────────────
+
+// 1. Admin Model
+export const Admin = User.discriminator(
+  'admin',
+  new mongoose.Schema({
+    isSuperAdmin: { type: Boolean, default: false },
+    permissions: [{ type: String }], // e.g., ['manage_users', 'view_reports']
+  })
+);
+
+// 2. Manager Model
+export const Manager = User.discriminator(
+  'manager',
+  new mongoose.Schema({
+    department: { type: String, trim: true },
+    canApproveReturns: { type: Boolean, default: false },
+  })
+);
+
+// 3. Staff Model
+export const Staff = User.discriminator(
+  'staff',
+  new mongoose.Schema({
+    shift: { type: String, enum: ['morning', 'afternoon', 'night', 'general'], default: 'general' },
+    hourlyRate: { type: Number, default: 0 },
+    dailySalesTarget: { type: Number, default: 0 },
+  })
+);
+
 export default User;

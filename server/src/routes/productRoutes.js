@@ -9,6 +9,7 @@ import {
   adjustStock,
   deleteProduct,
   importProducts,
+  scanImportFile,
 } from '../controllers/productController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -24,6 +25,7 @@ router.post('/', authorize('admin', 'manager'), createProduct);
 router.put('/:id', authorize('admin', 'manager'), updateProduct);
 router.patch('/:id/stock', adjustStock);
 router.delete('/:id', authorize('admin'), deleteProduct);
+router.post('/import/scan', authorize('admin', 'manager'), upload.single('file'), scanImportFile);
 router.post('/import', authorize('admin', 'manager'), upload.single('file'), importProducts);
 
 export default router;

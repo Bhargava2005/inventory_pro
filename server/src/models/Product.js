@@ -7,7 +7,12 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Product name is required'],
       trim: true,
       minlength: [2, 'Name must be at least 2 characters'],
-      maxlength: [100, 'Name cannot exceed 100 characters'],
+      maxlength: [200, 'Name cannot exceed 200 characters'],
+    },
+    brand: {
+      type: String,
+      trim: true,
+      default: '',
     },
     sku: {
       type: String,
@@ -62,13 +67,39 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    image: {
+      type: String,
+      default: '',
+    },
+    color: {
+      type: String,
+      default: '#3b82f6',
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+    },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
+    },
+    // Stock-state fields — populated via Excel import or manual audit
+    damagedStock: { type: Number, default: 0, min: 0 },
+    sampleStock: { type: Number, default: 0, min: 0 },
+    exchangedStock: { type: Number, default: 0, min: 0 },
+    wrongProductStock: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );
+
+// Compound text index for fuzzy full-text search
+productSchema.index({ name: 'text', sku: 'text', brand: 'text', supplier: 'text' });
 
 // Auto-generate SKU before saving if not provided
 productSchema.pre('save', async function (next) {

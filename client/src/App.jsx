@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 import useThemeStore from './store/themeStore.js';
 import { ProtectedRoute, GuestRoute } from './components/auth/ProtectedRoute.jsx';
 import AppLayout from './components/layout/AppLayout.jsx';
+import NetworkStatus from './components/layout/NetworkStatus.jsx';
+import Heartbeat from './components/auth/Heartbeat.jsx';
 
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
@@ -12,11 +14,14 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import ProductsPage from './pages/ProductsPage.jsx';
 import CategoriesPage from './pages/CategoriesPage.jsx';
 import LowStockPage from './pages/LowStockPage.jsx';
-import StoresPage from './pages/StoresPage.jsx';
+import BranchesPage from './pages/BranchesPage.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import NewSalePage from './pages/NewSalePage.jsx';
 import SalesPage from './pages/SalesPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import EmployeeBehaviorPage from './pages/EmployeeBehaviorPage.jsx';
 
 export default function App() {
   const { theme } = useThemeStore();
@@ -26,7 +31,7 @@ export default function App() {
   }, [theme]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster
         position="top-right"
         toastOptions={{
@@ -42,6 +47,8 @@ export default function App() {
           error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
         }}
       />
+      <NetworkStatus />
+      <Heartbeat />
 
       <Routes>
         {/* Public / guest-only routes */}
@@ -82,10 +89,10 @@ export default function App() {
           }
         />
         <Route
-          path="/stores"
+          path="/branches"
           element={
             <ProtectedRoute>
-              <AppLayout><StoresPage /></AppLayout>
+              <AppLayout><BranchesPage /></AppLayout>
             </ProtectedRoute>
           }
         />
@@ -118,6 +125,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AppLayout><AnalyticsPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout><ProfilePage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <AppLayout><SettingsPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employee-behavior"
+          element={
+            <ProtectedRoute>
+              <AppLayout><EmployeeBehaviorPage /></AppLayout>
             </ProtectedRoute>
           }
         />

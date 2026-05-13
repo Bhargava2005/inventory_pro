@@ -11,10 +11,13 @@ import useThemeStore from '../store/themeStore.js';
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Email or username is required'),
   password: z.string().min(1, 'Password is required'),
+  storeCode: z.string().optional(),
+  intendedRole: z.string().optional(),
 });
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loginMode, setLoginMode] = useState('admin'); // 'admin', 'manager', 'staff'
   const { login, isLoading } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
@@ -30,10 +33,11 @@ export default function LoginPage() {
   } = useForm({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = async (data) => {
-    const result = await login(data);
+    const result = await login({ ...data, intendedRole: loginMode });
     if (result.success) {
-      toast.success('Welcome back!');
-      navigate(from, { replace: true });
+      toast.success(`Welcome back, ${loginMode}!`);
+      const defaultPath = loginMode === 'staff' ? '/pos' : '/dashboard';
+      navigate(location.state?.from?.pathname || defaultPath, { replace: true });
     } else {
       setError('root', { message: result.message });
     }
@@ -58,7 +62,27 @@ export default function LoginPage() {
             <Package className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Pro</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Sign in to your workspace</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm capitalize">
+            {loginMode} Portal Login
+          </p>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-6">
+          {['admin', 'manager', 'staff'].map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setLoginMode(mode)}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
+                loginMode === mode
+                  ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
         </div>
 
         {/* Card */}
@@ -70,6 +94,19 @@ export default function LoginPage() {
               <div className="flex items-center gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                 <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
                 <p className="text-sm text-red-600 dark:text-red-400">{errors.root.message}</p>
+              </div>
+            )}
+
+            {/* Store ID (Only for Manager/Staff Login) */}
+            {loginMode !== 'admin' && (
+              <div className="animate-fade-in">
+                <label className="label">Store ID</label>
+                <input
+                  {...register('storeCode')}
+                  type="text"
+                  placeholder="Enter Store Code (e.g. MW-01)"
+                  className={`input uppercase ${errors.storeCode ? 'input-error' : ''}`}
+                />
               </div>
             )}
 

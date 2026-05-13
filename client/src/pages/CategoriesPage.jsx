@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Tags, Loader2, X, AlertCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Tags, Loader2, X, AlertCircle, Search, Package } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import useProductStore from '../store/productStore.js';
 import useAuthStore from '../store/authStore.js';
+import { fuzzyMatch } from '../utils/searchUtils.js';
 
 const PRESET_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
@@ -14,7 +15,7 @@ const PRESET_COLORS = [
 ];
 
 const schema = z.object({
-  name: z.string().min(2, 'At least 2 characters').max(50),
+  name: z.string().min(2, 'At least 2 characters').max(200),
   description: z.string().max(200).optional(),
   color: z.string().optional(),
 });
@@ -92,11 +93,20 @@ function CategoryModal({ category, onClose }) {
   );
 }
 
-export default function CategoriesPage() {
+export default function CategoriesPage({ hideHeader }) {
   const { categories, fetchCategories, deleteCategory, isLoading } = useProductStore();
   const { user } = useAuthStore();
   const [showModal, setShowModal] = useState(false);
   const [editCategory, setEditCategory] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredCategories = categories.filter(cat => {
+    const tokens = searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return tokens.length === 0 || tokens.every(token => 
+      fuzzyMatch(cat.name, token) || 
+      (cat.description && fuzzyMatch(cat.description, token))
+    );
+  });
 
   const canEdit = ['admin', 'manager'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
@@ -112,14 +122,34 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Categories</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{categories.length} categories total</p>
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Categories</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{categories.length} categories total</p>
+          </div>
+          {canEdit && (
+            <button onClick={() => { setEditCategory(null); setShowModal(true); }} className="btn-primary">
+              <Plus className="w-4 h-4" /> Add Category
+            </button>
+          )}
         </div>
-        {canEdit && (
-          <button onClick={() => { setEditCategory(null); setShowModal(true); }} className="btn-primary">
-            <Plus className="w-4 h-4" /> Add Category
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search categories..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="input pl-9"
+          />
+        </div>
+        {hideHeader && canEdit && (
+          <button onClick={() => { setEditCategory(null); setShowModal(true); }} className="btn-primary text-xs py-2 whitespace-nowrap">
+            <Plus className="w-3.5 h-3.5" /> Add Category
           </button>
         )}
       </div>
@@ -132,14 +162,19 @@ export default function CategoriesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map((cat) => (
-            <div key={cat._id} className="card p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: cat.color + '22' }}>
-                <Tags className="w-5 h-5" style={{ color: cat.color }} />
+          {filteredCategories.map((cat) => (
+            <div key={cat._id} className="card p-5 flex items-center gap-4 hover:shadow-md transition-shadow group">
+              <div className="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center transition-transform group-hover:scale-110" style={{ backgroundColor: cat.color + '22' }}>
+                <Tags className="w-6 h-6" style={{ color: cat.color }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 dark:text-white truncate">{cat.name}</p>
-                {cat.description && <p className="text-xs text-gray-400 mt-0.5 truncate">{cat.description}</p>}
+                <p className="font-bold text-gray-900 dark:text-white truncate">{cat.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                    <Package size={10} /> {cat.productCount || 0} Products
+                  </span>
+                  {cat.description && <p className="text-xs text-gray-400 truncate flex-1">— {cat.description}</p>}
+                </div>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {canEdit && (

@@ -6,10 +6,10 @@ const useUserStore = create((set) => ({
   isLoading: false,
   error: null,
 
-  fetchUsers: async () => {
+  fetchUsers: async (params = {}) => {
     set({ isLoading: true });
     try {
-      const { data } = await userAPI.getAll();
+      const { data } = await userAPI.getAll(params);
       set({ users: data.data, isLoading: false });
     } catch {
       set({ isLoading: false });

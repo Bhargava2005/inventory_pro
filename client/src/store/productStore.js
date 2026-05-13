@@ -16,11 +16,11 @@ const useProductStore = create((set, get) => ({
   setPage: (page) => set({ page }),
 
   // ── Products ──────────────────────────────────────────────────────────────
-  fetchProducts: async () => {
+  fetchProducts: async (overrideParams = {}) => {
     set({ isLoading: true });
     try {
       const { filters, page } = get();
-      const params = { ...filters, page, limit: 12 };
+      const params = { ...filters, page, limit: 12, ...overrideParams };
       if (!params.status) delete params.status;
       if (params.category === 'all') delete params.category;
       const { data } = await productAPI.getAll(params);

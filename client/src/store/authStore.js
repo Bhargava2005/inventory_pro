@@ -49,7 +49,12 @@ const useAuthStore = create(
       },
 
       // Logout action
-      logout: () => {
+      logout: async () => {
+        try {
+          await authAPI.logout();
+        } catch (error) {
+          console.error('Server logout failed:', error);
+        }
         localStorage.removeItem('token');
         set({ user: null, token: null, isAuthenticated: false });
       },

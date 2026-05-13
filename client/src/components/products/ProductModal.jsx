@@ -6,8 +6,9 @@ import { X, Loader2, AlertCircle } from 'lucide-react';
 import useProductStore from '../../store/productStore.js';
 
 const schema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(200),
   sku: z.string().optional(),
+  brand: z.string().max(100).optional(),
   category: z.string().optional(),
   description: z.string().max(500).optional(),
   price: z.coerce.number({ invalid_type_error: 'Required' }).min(0, 'Cannot be negative'),
@@ -15,7 +16,13 @@ const schema = z.object({
   quantity: z.coerce.number({ invalid_type_error: 'Required' }).min(0, 'Cannot be negative'),
   minStockLevel: z.coerce.number().min(0).optional().default(5),
   unit: z.string().optional().default('pcs'),
+  damagedStock: z.coerce.number().min(0).optional().default(0),
+  sampleStock: z.coerce.number().min(0).optional().default(0),
+  exchangedStock: z.coerce.number().min(0).optional().default(0),
+  wrongProductStock: z.coerce.number().min(0).optional().default(0),
   supplier: z.string().max(100).optional(),
+  image: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid hex color').optional().or(z.literal('')),
 });
 
 export default function ProductModal({ product, onClose, onSaved }) {
@@ -27,6 +34,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
     defaultValues: isEdit ? {
       name: product.name,
       sku: product.sku,
+      brand: product.brand || '',
       category: product.category?._id || '',
       description: product.description,
       price: product.price,
@@ -34,8 +42,23 @@ export default function ProductModal({ product, onClose, onSaved }) {
       quantity: product.quantity,
       minStockLevel: product.minStockLevel,
       unit: product.unit,
+      damagedStock: product.damagedStock || 0,
+      sampleStock: product.sampleStock || 0,
+      exchangedStock: product.exchangedStock || 0,
+      wrongProductStock: product.wrongProductStock || 0,
       supplier: product.supplier,
-    } : { unit: 'pcs', minStockLevel: 5, costPrice: 0 },
+      image: product.image || '',
+      color: product.color || '#3b82f6',
+    } : { 
+      unit: 'pcs', 
+      minStockLevel: 5, 
+      costPrice: 0, 
+      color: '#3b82f6',
+      damagedStock: 0,
+      sampleStock: 0,
+      exchangedStock: 0,
+      wrongProductStock: 0
+    },
   });
 
   const onSubmit = async (data) => {
@@ -56,7 +79,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {isEdit ? 'Edit Product' : 'Add New Product'}
           </h2>
@@ -88,13 +111,19 @@ export default function ProductModal({ product, onClose, onSaved }) {
             </div>
             <div>
               <label className="label">Category</label>
-              <select {...register('category')} className="input">
+              <select {...register('category')} className="select">
                 <option value="">No category</option>
                 {categories.map((c) => (
                   <option key={c._id} value={c._id}>{c.name}</option>
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Brand */}
+          <div>
+            <label className="label">Brand / Manufacturer</label>
+            <input {...register('brand')} className="input" placeholder="e.g. Kajaria, Somany" />
           </div>
 
           {/* Price + Cost row */}
@@ -127,6 +156,29 @@ export default function ProductModal({ product, onClose, onSaved }) {
             </div>
           </div>
 
+          {/* Secondary Inventory Section */}
+          <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+            <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Advanced Inventory Pools</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label text-[10px]">Sample Stock</label>
+                <input {...register('sampleStock')} type="number" className="input bg-white dark:bg-gray-900" placeholder="0" />
+              </div>
+              <div>
+                <label className="label text-[10px]">Damaged Stock</label>
+                <input {...register('damagedStock')} type="number" className="input bg-white dark:bg-gray-900" placeholder="0" />
+              </div>
+              <div>
+                <label className="label text-[10px]">Exchanged Stock</label>
+                <input {...register('exchangedStock')} type="number" className="input bg-white dark:bg-gray-900" placeholder="0" />
+              </div>
+              <div>
+                <label className="label text-[10px]">Wrong Product Stock</label>
+                <input {...register('wrongProductStock')} type="number" className="input bg-white dark:bg-gray-900" placeholder="0" />
+              </div>
+            </div>
+          </div>
+
           {/* Supplier */}
           <div>
             <label className="label">Supplier</label>
@@ -139,8 +191,29 @@ export default function ProductModal({ product, onClose, onSaved }) {
             <textarea {...register('description')} rows={2} className="input resize-none" placeholder="Optional product description" />
           </div>
 
+          {/* Visual Identity: Image & Color */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+            <div className="space-y-3">
+              <label className="label flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary-500" /> Image URL
+              </label>
+              <input {...register('image')} className={`input text-xs ${errors.image ? 'input-error' : ''}`} placeholder="https://images.unsplash.com/..." />
+              {errors.image && <p className="error-text text-[10px]">{errors.image.message}</p>}
+            </div>
+            <div className="space-y-3">
+              <label className="label flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary-500" /> Theme Color
+              </label>
+              <div className="flex items-center gap-2">
+                <input {...register('color')} type="color" className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0" />
+                <input {...register('color')} className={`input text-xs font-mono ${errors.color ? 'input-error' : ''}`} placeholder="#3b82f6" />
+              </div>
+              {errors.color && <p className="error-text text-[10px]">{errors.color.message}</p>}
+            </div>
+          </div>
+
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 sticky bottom-0 bg-white dark:bg-gray-900 py-4 border-t border-gray-100 dark:border-gray-800 z-10">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
               {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />{isEdit ? 'Saving...' : 'Creating...'}</> : (isEdit ? 'Save Changes' : 'Create Product')}

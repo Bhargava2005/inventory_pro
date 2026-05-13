@@ -4,4 +4,5 @@ export const saleAPI = {
   create: (data) => api.post('/sales', data),
   getAll: (params) => api.get('/sales', { params }),
   getStats: () => api.get('/sales/stats'),
+  updateItem: (saleId, itemId, data) => api.put(`/sales/${saleId}/items/${itemId}`, data),
 };
