@@ -13,14 +13,14 @@ import useThemeStore from '../../store/themeStore.js';
 import useNotificationStore from '../../store/notificationStore.js';
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'manager'] },
-  { to: '/pos', icon: ShoppingCart, label: 'New Sale' },
-  { to: '/sales', icon: Receipt, label: 'Sales History', roles: ['admin', 'manager', 'staff'] },
-  { to: '/users', icon: ShieldCheck, label: 'Staff Management', roles: ['admin', 'manager'] },
-  { to: '/analytics', icon: BarChart3, label: 'Sales Analytics', roles: ['admin', 'manager', 'staff'] },
-  { to: '/products', icon: Package, label: 'Inventory Management', roles: ['admin', 'manager'] },
-  { to: '/employee-behavior', icon: BarChart3, label: 'Employee Behavior', roles: ['admin', 'manager', 'staff'] },
-  { to: '/branches', icon: Store, label: 'Branches', roles: ['admin'] },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', shortLabel: 'Home', roles: ['admin', 'manager'] },
+  { to: '/pos', icon: ShoppingCart, label: 'New Sale', shortLabel: 'Sale' },
+  { to: '/sales', icon: Receipt, label: 'Sales History', shortLabel: 'Sales', roles: ['admin', 'manager', 'staff'] },
+  { to: '/users', icon: ShieldCheck, label: 'Staff Management', shortLabel: 'Staff', roles: ['admin', 'manager'] },
+  { to: '/analytics', icon: BarChart3, label: 'Sales Analytics', shortLabel: 'Analytics', roles: ['admin', 'manager', 'staff'] },
+  { to: '/products', icon: Package, label: 'Inventory Management', shortLabel: 'Inventory', roles: ['admin', 'manager'] },
+  { to: '/employee-behavior', icon: BarChart3, label: 'Employee Behavior', shortLabel: 'Behavior', roles: ['admin', 'manager', 'staff'] },
+  { to: '/branches', icon: Store, label: 'Branches', shortLabel: 'Branches', roles: ['admin'] },
 ];
 
 const roleBadge = {
@@ -219,7 +219,7 @@ export default function AppLayout({ children }) {
 
         {showNotifications && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-slide-up">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90dvh] sm:max-h-[85vh] flex flex-col overflow-hidden animate-slide-up">
               <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 flex justify-between items-center flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600">
@@ -280,7 +280,7 @@ export default function AppLayout({ children }) {
 
                       {/* Reply Section */}
                       {n.type !== 'system' && n.performedBy && (
-                        <div className="mt-3 ml-14">
+                        <div className="mt-3 ml-0 sm:ml-14 pl-0 sm:pl-0">
                           {replyingTo === n._id ? (
                             <form onSubmit={(e) => handleReplySubmit(e, n._id)} className="flex items-center gap-2 mt-2">
                               <input 
@@ -328,12 +328,12 @@ export default function AppLayout({ children }) {
           {navItems
             .filter(item => !item.roles || item.roles.includes(user?.role))
             .slice(0, 5)
-            .map(({ to, icon: Icon, label }) => (
+            .map(({ to, icon: Icon, label, shortLabel }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-0.5 px-2 py-2 min-w-[3.5rem] flex-1 rounded-xl text-[10px] font-semibold transition-all duration-150 relative ${
+                `flex flex-col items-center justify-center gap-0.5 px-1 py-2 min-w-0 flex-1 rounded-xl text-[9px] font-semibold transition-all duration-150 relative ${
                   isActive
                     ? 'text-primary-600 dark:text-primary-400'
                     : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -346,10 +346,10 @@ export default function AppLayout({ children }) {
                   {isActive && (
                     <span className="absolute top-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary-500" />
                   )}
-                  <span className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150 ${isActive ? 'bg-primary-50 dark:bg-primary-900/30' : ''}`}>
-                    <Icon size={22} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
+                  <span className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-150 ${isActive ? 'bg-primary-50 dark:bg-primary-900/30' : ''}`}>
+                    <Icon size={20} className={isActive ? 'text-primary-600 dark:text-primary-400' : ''} />
                   </span>
-                  <span className="truncate w-full text-center leading-tight">{label}</span>
+                  <span className="truncate w-full text-center leading-tight">{shortLabel || label}</span>
                 </>
               )}
             </NavLink>

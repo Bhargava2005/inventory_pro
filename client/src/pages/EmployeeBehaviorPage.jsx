@@ -116,7 +116,7 @@ export default function EmployeeBehaviorPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Branch selector */}
           {isAdmin() && (
-            <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 min-w-[180px]">
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[180px]">
               <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <select
                 value={selectedBranch}
@@ -132,15 +132,15 @@ export default function EmployeeBehaviorPage() {
           )}
 
           {/* Date range */}
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5">
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 flex-1 sm:flex-none">
             <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input type="date"
-              className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none"
+              className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none flex-1 sm:w-auto"
               value={dateRange.startDate}
               onChange={(e) => setDateRange((p) => ({ ...p, startDate: e.target.value }))} />
             <span className="text-gray-400 text-xs">→</span>
             <input type="date"
-              className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none"
+              className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none flex-1 sm:w-auto"
               value={dateRange.endDate}
               onChange={(e) => setDateRange((p) => ({ ...p, endDate: e.target.value }))} />
           </div>
@@ -148,7 +148,7 @@ export default function EmployeeBehaviorPage() {
           {/* Export button */}
           <button
             onClick={() => setShowExport(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
           >
             <Download className="w-4 h-4" />
             Export
@@ -211,9 +211,9 @@ export default function EmployeeBehaviorPage() {
                 className="card overflow-hidden border border-transparent hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md transition-all cursor-pointer group"
               >
                 <div className="p-5">
-                  <div className="flex flex-col xl:flex-row gap-5">
-                    {/* Employee info */}
-                    <div className="flex items-center gap-4 min-w-[220px]">
+                    <div className="flex flex-col xl:flex-row gap-4 sm:gap-5">
+                      {/* Employee info */}
+                      <div className="flex items-center gap-3 sm:gap-4 xl:min-w-[220px]">
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white shadow-lg shadow-primary-200 dark:shadow-none">
                         <User className="w-6 h-6" />
                       </div>
@@ -237,8 +237,8 @@ export default function EmployeeBehaviorPage() {
                       </div>
                     </div>
 
-                    {/* Attendance section */}
-                    <div className="flex-1 grid grid-cols-3 gap-3 xl:border-l border-gray-100 dark:border-gray-800 xl:pl-5">
+                      {/* Attendance section — 3 cols on all, compact on mobile */}
+                      <div className="flex-1 grid grid-cols-3 gap-2 sm:gap-3 xl:border-l border-gray-100 dark:border-gray-800 xl:pl-5">
                       <div>
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1 mb-0.5">
                           <Clock className="w-3 h-3 text-primary-500" /> Login
@@ -261,8 +261,8 @@ export default function EmployeeBehaviorPage() {
                       </div>
                     </div>
 
-                    {/* Sales/incidents section */}
-                    <div className="flex-1 grid grid-cols-5 gap-2 xl:border-l border-gray-100 dark:border-gray-800 xl:pl-5">
+                      {/* Sales/incidents — 5 cols, wraps to 3+2 on mobile if needed */}
+                      <div className="flex-1 grid grid-cols-5 gap-1 sm:gap-2 xl:border-l border-gray-100 dark:border-gray-800 xl:pl-5">
                       {[
                         { label: 'Sales', value: staff.salesCount, icon: TrendingUp, cls: 'text-gray-900 dark:text-white' },
                         { label: 'Damaged', value: staff.damagedCount, icon: AlertTriangle, cls: 'text-red-600 dark:text-red-400' },

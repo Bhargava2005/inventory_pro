@@ -22,6 +22,7 @@ import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import EmployeeBehaviorPage from './pages/EmployeeBehaviorPage.jsx';
+import LandingPage from './pages/LandingPage.jsx';
 
 export default function App() {
   const { theme } = useThemeStore();
@@ -153,9 +154,11 @@ export default function App() {
           }
         />
 
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Landing Page */}
+        <Route path="/" element={<LandingPage />} />
+
+        {/* Default redirect for unknown routes */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

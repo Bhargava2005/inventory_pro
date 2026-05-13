@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 min-w-[150px]">
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[150px]">
             <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <select 
               value={selectedCategory}
@@ -314,14 +314,14 @@ export default function AnalyticsPage() {
               value={dateRange.endDate} onChange={(e) => { setDateRange(p => ({ ...p, endDate: e.target.value })); setActivePreset('custom'); }} />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <button onClick={() => handleExportClick('excel')} disabled={isExporting}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm disabled:opacity-50">
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm disabled:opacity-50">
               {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
               Excel
             </button>
             <button onClick={() => handleExportClick('pdf')}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition shadow-sm">
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition shadow-sm">
               <FileText className="w-4 h-4" />
               PDF
             </button>
@@ -356,14 +356,18 @@ export default function AnalyticsPage() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button onClick={() => { setActiveResultTab('product'); setPage(1); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition ${activeResultTab === 'product' ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white dark:bg-gray-800 text-gray-500'}`}>
-              <ShoppingBag className="w-4 h-4" /> Product Performance
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${activeResultTab === 'product' ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white dark:bg-gray-800 text-gray-500'}`}>
+              <ShoppingBag className="w-4 h-4" />
+              <span className="hidden sm:inline">Product Performance</span>
+              <span className="sm:hidden">Products</span>
             </button>
             <button onClick={() => { setActiveResultTab('time'); setPage(1); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition ${activeResultTab === 'time' ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white dark:bg-gray-800 text-gray-500'}`}>
-              <Clock className="w-4 h-4" /> Summary by Date
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${activeResultTab === 'time' ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white dark:bg-gray-800 text-gray-500'}`}>
+              <Clock className="w-4 h-4" />
+              <span className="hidden sm:inline">Summary by Date</span>
+              <span className="sm:hidden">By Date</span>
             </button>
           </div>
           <button onClick={() => fetchData(selectedProducts, page)} className="p-2 text-gray-400 hover:text-primary-600 transition" title="Refresh">
