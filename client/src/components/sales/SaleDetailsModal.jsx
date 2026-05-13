@@ -160,8 +160,8 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                             )}
                             <div className="absolute top-1 left-1 w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: item.product?.color || '#3b82f6' }} />
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-gray-900 dark:text-white truncate">{item.name}</p>
+                          <div className="min-w-0 max-w-[200px] md:max-w-[300px]">
+                            <p className="font-bold text-gray-900 dark:text-white break-words line-clamp-2">{item.name}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] text-gray-400 font-mono">
                                 SKU: {item.product?.sku || (typeof item.product === 'string' ? item.product.slice(-6) : 'N/A')}
