@@ -51,7 +51,7 @@ app.use('/api/auth/register', authLimiter);
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: process.env.CLIENT_URL || '*', // Set CLIENT_URL on Render for better security
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
