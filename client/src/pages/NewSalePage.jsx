@@ -22,8 +22,14 @@ export default function NewSalePage() {
   const [customer, setCustomer] = useState({ name: '', phone: '', companyName: '', addressLine: '' });
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [showScanner, setShowScanner] = useState(false);
-  // Mobile tab state: 'products' | 'cart'
   const [activeTab, setActiveTab] = useState('products');
+  
+  // Modal States
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [showAddConfirm, setShowAddConfirm] = useState(false);
+  const [productToConfirm, setProductToConfirm] = useState(null);
+  const [confirmQty, setConfirmQty] = useState(1);
+  const [confirmPool, setConfirmPool] = useState('isSelling');
   
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -43,7 +49,7 @@ export default function NewSalePage() {
   }, [products]);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts({ limit: 1000 });
     if (!settings) fetchSettings();
   }, []);
 
@@ -90,26 +96,55 @@ export default function NewSalePage() {
 
   const addToCart = (product) => {
     if (product.quantity <= 0) { toast.error('Product out of stock'); return; }
-    const existing = cart.find(item => item.product === product._id);
+    setProductToConfirm(product);
+    setConfirmQty(1);
+    setConfirmPool('isSelling');
+    setShowAddConfirm(true);
+  };
+
+  const handleConfirmAdd = () => {
+    if (!productToConfirm) return;
+    
+    const existing = cart.find(item => item.product === productToConfirm._id);
     if (existing) {
-      if (existing.quantity >= product.quantity) { toast.error('Insufficient stock available'); return; }
-      setCart(cart.map(item => item.product === product._id ? { ...item, quantity: item.quantity + 1 } : item));
+      if (existing.quantity + confirmQty > productToConfirm.quantity) {
+        toast.error(`Insufficient stock. Only ${productToConfirm.quantity - existing.quantity} more available.`);
+        return;
+      }
+      setCart(cart.map(item => item.product === productToConfirm._id ? { 
+        ...item, 
+        quantity: item.quantity + confirmQty,
+        // Update pool if it was different? User said "selection of the four cart and quantity in confirmation window"
+        // If it's the same product but different pool, we might want to allow multiple entries for the same product?
+        // Current logic maps by product ID. If we want different pools for the same product, we'd need a unique key.
+        // For now, I'll stick to updating the existing one's pool and quantity as per current logic, 
+        // but the user might want multiple rows. Let's stick to updating for now to avoid breaking existing logic.
+        [confirmPool]: true,
+        // Ensure other pools are false
+        isSelling: confirmPool === 'isSelling',
+        isDamaged: confirmPool === 'isDamaged',
+        isSample: confirmPool === 'isSample',
+        isWrongProduct: confirmPool === 'isWrongProduct',
+      } : item));
     } else {
       setCart([...cart, { 
-        product: product._id, 
-        name: product.name, 
-        brand: product.brand,
-        price: product.price, 
-        image: product.image,
-        color: product.color,
-        quantity: 1, 
-        maxQty: product.quantity,
-        isSelling: true,  // default — explicit selling selection
-        isDamaged: false,
-        isSample: false,
-        isWrongProduct: false
+        product: productToConfirm._id, 
+        name: productToConfirm.name, 
+        brand: productToConfirm.brand,
+        price: productToConfirm.price, 
+        image: productToConfirm.image,
+        color: productToConfirm.color,
+        quantity: confirmQty, 
+        maxQty: productToConfirm.quantity,
+        isSelling: confirmPool === 'isSelling',
+        isDamaged: confirmPool === 'isDamaged',
+        isSample: confirmPool === 'isSample',
+        isWrongProduct: confirmPool === 'isWrongProduct'
       }]);
     }
+    toast.success(`Added ${productToConfirm.name} to cart`);
+    setShowAddConfirm(false);
+    setProductToConfirm(null);
   };
 
   // Mutually exclusive flag toggle across all 4 states (selling/sample/damaged/wrongProduct)
@@ -161,6 +196,7 @@ export default function NewSalePage() {
       setCart([]);
       setCustomer({ name: '', phone: '', companyName: '', addressLine: '' });
       setActiveTab('products');
+      setShowCheckoutModal(false);
       fetchProducts();
     } else {
       toast.error(result.message);
@@ -198,7 +234,14 @@ export default function NewSalePage() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800 animate-slide-down grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="relative mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800 animate-slide-down grid grid-cols-1 md:grid-cols-4 gap-4">
+          <button 
+            onClick={() => setShowFilters(false)}
+            className="absolute -top-2 -right-2 p-1.5 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-red-500 shadow-sm transition-colors z-10"
+            title="Close Filters"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Category</label>
             <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
@@ -235,6 +278,19 @@ export default function NewSalePage() {
         </div>
       )}
 
+      <div className="flex items-center justify-between mb-3 px-1">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+          {searchTerm || selectedCategory !== 'all' || selectedBrand !== 'all' || priceRange.min || priceRange.max ? (
+            <span className="text-primary-600">Filtered Results</span>
+          ) : (
+            <span>All Products</span>
+          )}
+          <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-300">
+            {filteredProducts.length}
+          </span>
+        </p>
+      </div>
+
       <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pr-1">
         {isLoading ? (
           <div className="col-span-full flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-600" /></div>
@@ -247,16 +303,16 @@ export default function NewSalePage() {
           filteredProducts.map(p => (
             <button 
               key={p._id}
-              onClick={() => { addToCart(p); setActiveTab('cart'); }}
+              onClick={() => { addToCart(p); }}
               disabled={p.quantity <= 0}
-              className={`group flex flex-col rounded-2xl border text-left transition-all hover:shadow-xl active:scale-95 overflow-hidden ${
+              className={`group flex flex-col rounded-2xl border text-left transition-all hover:shadow-xl active:scale-95 overflow-hidden min-h-[280px] sm:min-h-[320px] ${
                 p.quantity <= 0 
                   ? 'bg-gray-50 dark:bg-gray-800/30 border-gray-100 dark:border-gray-700 opacity-50 cursor-not-allowed' 
                   : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-primary-400'
               }`}
             >
               {/* Product Image */}
-              <div className="relative h-28 w-full bg-gray-100 dark:bg-gray-900 overflow-hidden">
+              <div className="relative h-32 sm:h-44 w-full bg-gray-100 dark:bg-gray-900 overflow-hidden flex-shrink-0">
                 {p.image ? (
                   <img src={p.image} alt={p.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 ) : (
@@ -270,13 +326,15 @@ export default function NewSalePage() {
                 />
               </div>
 
-              <div className="p-3 flex-1 flex flex-col border-t-4" style={{ borderTopColor: p.color || '#3b82f6' }}>
-                <p className="text-[9px] text-gray-400 font-mono mb-0.5 truncate uppercase tracking-tighter">{p.sku} • {p.brand || 'General'}</p>
-                <p className="text-xs font-bold text-gray-800 dark:text-gray-100 line-clamp-1 mb-2 leading-tight">{p.name}</p>
+              <div className="p-3 flex-1 flex flex-col border-t-[3px] gap-1.5" style={{ borderTopColor: p.color || '#3b82f6' }}>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-[9px] text-gray-400 font-mono truncate uppercase tracking-tighter">{p.sku} • {p.brand || 'General'}</p>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight h-8 mb-1">{p.name}</p>
+                </div>
                 
-                <div className="flex items-center justify-between mt-auto">
+                <div className="flex items-center justify-between mt-auto pt-1">
                   <p className="text-primary-600 dark:text-primary-400 font-black text-sm">₹{p.price.toLocaleString('en-IN')}</p>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-lg font-bold ${p.quantity <= 5 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-lg font-bold ${p.quantity <= 5 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                     {p.quantity} {p.unit}
                   </span>
                 </div>
@@ -384,42 +442,7 @@ export default function NewSalePage() {
 
       {/* Checkout section */}
       <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 space-y-3">
-        {/* Customer inputs */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input type="text" placeholder="Customer name" className="input pl-9 text-xs py-2" value={customer.name} onChange={(e) => setCustomer({...customer, name: e.target.value})} />
-          </div>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input type="text" placeholder="Phone" className="input pl-9 text-xs py-2" value={customer.phone} onChange={(e) => setCustomer({...customer, phone: e.target.value})} />
-          </div>
-          <div className="relative col-span-2">
-            <input type="text" placeholder="Company name (optional)" className="input text-xs py-2" value={customer.companyName} onChange={(e) => setCustomer({...customer, companyName: e.target.value})} />
-          </div>
-          <div className="relative col-span-2">
-            <input type="text" placeholder="Address line (optional)" className="input text-xs py-2" value={customer.addressLine} onChange={(e) => setCustomer({...customer, addressLine: e.target.value})} />
-          </div>
-        </div>
-
-        {/* Payment method */}
-        <div className="flex gap-2">
-          {[
-            { id: 'cash', label: 'Cash', Icon: Banknote },
-            { id: 'card', label: 'Card', Icon: CreditCard },
-            { id: 'upi', label: 'UPI', Icon: AlertCircle },
-          ].map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setPaymentMethod(id)}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex flex-col items-center gap-1 border-2 transition-all ${paymentMethod === id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-500'}`}
-            >
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Totals & checkout button */}
+        {/* Totals & next button */}
         <div className="pt-1">
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm text-gray-500">Subtotal</span>
@@ -436,11 +459,11 @@ export default function NewSalePage() {
             <span className="text-xl font-bold text-primary-600">₹{finalTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
           </div>
           <button 
-            onClick={handleCheckout}
-            disabled={cart.length === 0 || isSubmitting}
+            onClick={() => setShowCheckoutModal(true)}
+            disabled={cart.length === 0}
             className="btn-primary w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckIcon className="w-5 h-5" /> Complete Sale</>}
+            Next <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -504,6 +527,225 @@ export default function NewSalePage() {
           {activeTab === 'products' ? productGrid : cartPanel}
         </div>
       </div>
+
+      {/* Add Product Confirmation Modal */}
+      {showAddConfirm && productToConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-slide-up border border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add to Cart</h3>
+              <button onClick={() => setShowAddConfirm(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
+              <div className="w-16 h-16 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden flex-shrink-0">
+                {productToConfirm.image ? (
+                  <img src={productToConfirm.image} alt={productToConfirm.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                    <Package size={24} />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{productToConfirm.name}</p>
+                <p className="text-xs text-primary-600 font-semibold">₹{productToConfirm.price.toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Stock: {productToConfirm.quantity} {productToConfirm.unit}</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Quantity</label>
+                <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-2xl p-1">
+                  <button 
+                    onClick={() => setConfirmQty(Math.max(1, confirmQty - 1))}
+                    className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                  <span className="text-xl font-bold text-gray-900 dark:text-white">{confirmQty}</span>
+                  <button 
+                    onClick={() => setConfirmQty(Math.min(productToConfirm.quantity, confirmQty + 1))}
+                    className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Inventory Pool</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'isSelling', label: 'Selling', color: 'primary' },
+                    { id: 'isSample', label: 'Sample', color: 'green' },
+                    { id: 'isDamaged', label: 'Damaged', color: 'red' },
+                    { id: 'isWrongProduct', label: 'Wrong', color: 'purple' },
+                  ].map(({ id, label, color }) => (
+                    <button
+                      key={id}
+                      onClick={() => setConfirmPool(id)}
+                      className={`py-3 rounded-xl text-xs font-bold border-2 transition-all ${
+                        confirmPool === id 
+                          ? `border-${color}-500 bg-${color}-50 dark:bg-${color}-900/20 text-${color}-700` 
+                          : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-400'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                onClick={handleConfirmAdd}
+                className="btn-primary w-full py-4 rounded-2xl text-base font-bold shadow-lg shadow-primary-500/20"
+              >
+                Confirm Addition
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Big Checkout Modal */}
+      {showCheckoutModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-10">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Complete Sale</h2>
+                <p className="text-sm text-gray-500">Review items and enter customer details</p>
+              </div>
+              <button onClick={() => setShowCheckoutModal(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {/* Left Side: Cart Summary */}
+                <div className="space-y-6">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Order Summary</h3>
+                  <div className="space-y-3">
+                    {cart.map(item => (
+                      <div key={item.product} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+                        <div className="w-12 h-12 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden flex-shrink-0">
+                          {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><Package size={20} /></div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{item.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {item.quantity} × ₹{item.price.toLocaleString('en-IN')}
+                            {item.isSample && <span className="ml-2 text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Sample</span>}
+                            {(item.isDamaged || item.isWrongProduct) && <span className="ml-2 text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Reporting</span>}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">
+                            ₹{((item.isDamaged || item.isWrongProduct) ? 0 : item.price * item.quantity).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-6 bg-primary-50 dark:bg-primary-900/10 rounded-2xl space-y-3">
+                    <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                      <span>Subtotal</span>
+                      <span className="font-bold">₹{subtotal.toLocaleString('en-IN')}</span>
+                    </div>
+                    {taxAmount > 0 && (
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span>Tax ({defaultTaxRate}%)</span>
+                        <span className="font-bold">+ ₹{taxAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    <div className="pt-3 border-t border-primary-200/50 dark:border-primary-800/50 flex justify-between items-center">
+                      <span className="text-base font-bold text-primary-700 dark:text-primary-400">Total Amount</span>
+                      <span className="text-2xl font-black text-primary-700 dark:text-primary-400">₹{finalTotal.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Customer Details */}
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Customer Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Full Name</label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input type="text" placeholder="e.g. John Doe" className="input pl-11" value={customer.name} onChange={(e) => setCustomer({...customer, name: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Phone Number</label>
+                        <div className="relative">
+                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input type="text" placeholder="e.g. 9876543210" className="input pl-11" value={customer.phone} onChange={(e) => setCustomer({...customer, phone: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2 space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Company Name (Optional)</label>
+                        <input type="text" placeholder="e.g. Acme Corp" className="input" value={customer.companyName} onChange={(e) => setCustomer({...customer, companyName: e.target.value})} />
+                      </div>
+                      <div className="md:col-span-2 space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Address</label>
+                        <textarea placeholder="Full delivery address..." className="input min-h-[80px] py-3 resize-none" value={customer.addressLine} onChange={(e) => setCustomer({...customer, addressLine: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Payment Method</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { id: 'cash', label: 'Cash', Icon: Banknote },
+                        { id: 'card', label: 'Card', Icon: CreditCard },
+                        { id: 'upi', label: 'UPI', Icon: AlertCircle },
+                      ].map(({ id, label, Icon }) => (
+                        <button
+                          key={id}
+                          onClick={() => setPaymentMethod(id)}
+                          className={`py-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${
+                            paymentMethod === id 
+                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' 
+                              : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-400'
+                          }`}
+                        >
+                          <Icon className="w-6 h-6" />
+                          <span className="text-xs font-bold">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 sticky bottom-0">
+              <div className="max-w-4xl mx-auto flex gap-4">
+                <button 
+                  onClick={() => setShowCheckoutModal(false)}
+                  className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleCheckout}
+                  disabled={isSubmitting}
+                  className="flex-[2] btn-primary py-4 rounded-2xl text-lg font-bold shadow-xl shadow-primary-500/30"
+                >
+                  {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckIcon className="w-6 h-6" /> Confirm & Complete Sale</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

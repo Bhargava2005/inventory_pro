@@ -223,7 +223,15 @@ export default function ProductsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Management</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{total} products total</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {filters.search || filters.category !== 'all' || filters.status ? (
+                    <span className="text-primary-600 font-semibold">Showing {total} matching products</span>
+                  ) : (
+                    <span>{total} products total</span>
+                  )}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={handleExportInventory} className="btn-secondary flex-1 sm:flex-none">
@@ -329,7 +337,14 @@ export default function ProductsPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100 dark:border-gray-800 animate-fade-in">
+          <div className="relative flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100 dark:border-gray-800 animate-fade-in">
+            <button 
+              onClick={() => setShowFilters(false)}
+              className="absolute -top-3 -right-1 p-1 bg-white dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 shadow-sm transition-colors z-10"
+              title="Close Filters"
+            >
+              <X className="w-3 h-3" />
+            </button>
             <select value={filters.category} onChange={(e) => setFilters({ category: e.target.value })} className="input flex-1">
               <option value="all">All Categories</option>
               {categories.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
@@ -363,16 +378,28 @@ export default function ProductsPage() {
               <div 
                 key={p._id} 
                 onClick={() => setSelectedProduct(p)}
-                className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer group"
+                className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer group min-h-[300px] flex flex-col"
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">{p.name}</p>
-                    {p.supplier && <p className="text-xs text-gray-400 mt-0.5">{p.supplier}</p>}
-                    <p className="text-[11px] text-gray-400 font-mono mt-1">{p.sku}</p>
-                  </div>
-                  <span className={`badge ${statusColors[p.stockStatus]} flex-shrink-0`}>{statusLabels[p.stockStatus]}</span>
+                {/* Product Image */}
+                <div className="relative h-44 w-full bg-gray-100 dark:bg-gray-900 flex-shrink-0">
+                  {p.image ? (
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                      <Package size={32} />
+                    </div>
+                  )}
                 </div>
+
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">{p.name}</p>
+                      {p.supplier && <p className="text-xs text-gray-400 mt-0.5">{p.supplier}</p>}
+                      <p className="text-[11px] text-gray-400 font-mono mt-1">{p.sku}</p>
+                    </div>
+                    <span className={`badge ${statusColors[p.stockStatus]} flex-shrink-0`}>{statusLabels[p.stockStatus]}</span>
+                  </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div>
@@ -404,7 +431,8 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
           </div>
 
           {/* ── DESKTOP TABLE (hidden on mobile) ───────────────────────── */}
