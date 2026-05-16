@@ -59,7 +59,8 @@ export const generateMismatchReportPDF = (mismatchedProducts, user) => {
   }
 };
 
-export const generateInvoicePDF = (sale) => {
+export const generateInvoicePDF = (sale, options = {}) => {
+  const { hidePrice = false, hideTax = false, hidePaymentMethod = false } = options;
   const toastId = toast.loading('Preparing your invoice...');
   
   try {
@@ -87,7 +88,7 @@ export const generateInvoicePDF = (sale) => {
     doc.text(`Invoice #: ${sale.invoiceNumber}`, 140, 28);
     doc.text(`Date: ${date}`, 140, 33);
     doc.text(`Store: ${sale.storeId?.name || 'Main Branch'}`, 140, 38);
-    doc.text(`Payment: ${sale.paymentMethod || 'N/A'}`, 140, 43);
+    doc.text(`Payment: ${hidePaymentMethod ? '***' : sale.paymentMethod || 'N/A'}`, 140, 43);
 
     // 2. Customer & Staff Details
     doc.setDrawColor(240);
@@ -141,8 +142,8 @@ export const generateInvoicePDF = (sale) => {
         productDesc,
         item.product?.dimensions || '—',
         { content: qtyText, styles: { fontStyle: 'bold', halign: 'center' } },
-        `Rs. ${item.price.toLocaleString('en-IN')}${showPiecePrice ? `\n(Rs. ${calculatedPricePerPiece.toFixed(2)}/P)` : ''}`,
-        `Rs. ${item.subtotal.toLocaleString('en-IN')}`
+        hidePrice ? '***' : `Rs. ${item.price.toLocaleString('en-IN')}${showPiecePrice ? `\n(Rs. ${calculatedPricePerPiece.toFixed(2)}/P)` : ''}`,
+        hidePrice ? '***' : `Rs. ${item.subtotal.toLocaleString('en-IN')}`
       ];
     });
 
@@ -174,51 +175,77 @@ export const generateInvoicePDF = (sale) => {
       return sum + (weightMatch ? parseFloat(weightMatch[1]) : 0);
     }, 0);
 
+    const totalBoxes = sale.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const totalPieces = sale.items.reduce((sum, item) => sum + (item.pieces || 0), 0);
+
+    // Order Summary
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ORDER SUMMARY', 14, finalY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Total Boxes:`, 14, finalY + 6);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${totalBoxes}`, 35, finalY + 6);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Pieces:`, 14, finalY + 11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${totalPieces}`, 35, finalY + 11);
+    
+    if (grandTotalWeight > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Total Weight:`, 14, finalY + 16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${grandTotalWeight.toFixed(2)} KG`, 35, finalY + 16);
+    }
+
+    let nextY = finalY + (grandTotalWeight > 0 ? 24 : 19);
+
     // Add Transporter Info if available
     if (sale.transporter?.name) {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('TRANSPORTER / DELIVERY DETAILS', 14, finalY);
+      doc.text('TRANSPORTER / DELIVERY DETAILS', 14, nextY);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(`Driver Name: ${sale.transporter.name}`, 14, finalY + 6);
-      doc.text(`Mobile: ${sale.transporter.mobile || 'N/A'}`, 14, finalY + 11);
-      doc.text(`Vehicle: ${sale.transporter.vehicleType || 'N/A'} (${sale.transporter.vehicleNumber || 'N/A'})`, 14, finalY + 16);
-      if (grandTotalWeight > 0) {
-        doc.text(`Total Weight: ${grandTotalWeight.toFixed(2)} KG`, 14, finalY + 21);
+      doc.text(`Driver Name: ${sale.transporter.name}`, 14, nextY + 6);
+      doc.text(`Mobile: ${sale.transporter.mobile || 'N/A'}`, 14, nextY + 11);
+      doc.text(`Vehicle: ${sale.transporter.vehicleType || 'N/A'} (${sale.transporter.vehicleNumber || 'N/A'})`, 14, nextY + 16);
+    }
+
+    if (!hidePrice) {
+      const totalsStartX = 140;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Subtotal:', totalsStartX, doc.lastAutoTable.finalY + 10);
+      doc.text(`Rs. ${(sale.totalAmount - (sale.tax || 0) + (sale.discount || 0)).toLocaleString('en-IN')}`, 196, doc.lastAutoTable.finalY + 10, { align: 'right' });
+
+      let currentY = doc.lastAutoTable.finalY + 10;
+
+      if (sale.tax > 0 && !hideTax) {
+        currentY += 6;
+        doc.text('Tax:', totalsStartX, currentY);
+        doc.text(`+ Rs. ${sale.tax.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
       }
+
+      if (sale.discount > 0) {
+        currentY += 6;
+        doc.text('Discount:', totalsStartX, currentY);
+        doc.text(`- Rs. ${sale.discount.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
+      }
+
+      // Total Amount
+      currentY += 10;
+      doc.setDrawColor(200);
+      doc.line(labelX, currentY - 5, rightEdge, currentY - 5);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(99, 102, 241);
+      doc.text('TOTAL AMOUNT:', labelX, currentY);
+      doc.text(`Rs. ${sale.totalAmount.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
     }
-
-    const totalsStartX = 140;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Subtotal:', totalsStartX, doc.lastAutoTable.finalY + 10);
-    doc.text(`Rs. ${(sale.totalAmount - (sale.tax || 0) + (sale.discount || 0)).toLocaleString('en-IN')}`, 196, doc.lastAutoTable.finalY + 10, { align: 'right' });
-
-    let currentY = doc.lastAutoTable.finalY + 10;
-
-    if (sale.tax > 0) {
-      currentY += 6;
-      doc.text('Tax:', totalsStartX, currentY);
-      doc.text(`+ Rs. ${sale.tax.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
-    }
-
-    if (sale.discount > 0) {
-      currentY += 6;
-      doc.text('Discount:', totalsStartX, currentY);
-      doc.text(`- Rs. ${sale.discount.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
-    }
-
-    // Total Amount
-    currentY += 10;
-    doc.setDrawColor(200);
-    doc.line(labelX, currentY - 5, rightEdge, currentY - 5);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(99, 102, 241);
-    doc.text('TOTAL AMOUNT:', labelX, currentY);
-    doc.text(`Rs. ${sale.totalAmount.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
 
     // 5. Footer
     doc.setFontSize(8);

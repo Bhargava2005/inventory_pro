@@ -68,7 +68,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
               onClick={async () => {
                 try {
                   setIsDownloading(true);
-                  await generateInvoicePDF(sale);
+                  await generateInvoicePDF(sale, { hidePrice, hideTax, hidePaymentMethod: hidePayment });
                 } catch (error) {
                   console.error('Download failed:', error);
                   toast.error('Failed to generate PDF');

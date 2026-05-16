@@ -22,7 +22,8 @@ const navItems = [
   { to: '/products', icon: Package, label: 'Inventory Management', shortLabel: 'Inventory', roles: ['admin', 'manager'], mobileNav: true },
   // Desktop-sidebar-only items (accessible via contextual nav on mobile)
   { to: '/sales', icon: Receipt, label: 'Sales History', shortLabel: 'Sales', roles: ['admin', 'manager', 'staff'], mobileNav: false },
-  { to: '/employee-behavior', icon: UserSearch, label: 'Employee Behavior', shortLabel: 'Behavior', roles: ['admin', 'manager', 'staff'], mobileNav: true },
+  { to: '/employee-behavior', icon: UserSearch, label: 'Employee Behavior', shortLabel: 'Behavior', roles: ['staff'], mobileNav: true },
+  { to: '/employee-behavior', icon: UserSearch, label: 'Employee Behavior', shortLabel: 'Behavior', roles: ['admin', 'manager'], mobileNav: false },
   { to: '/branches', icon: Store, label: 'Branches', shortLabel: 'Branches', roles: ['admin'], mobileNav: false },
 ];
 

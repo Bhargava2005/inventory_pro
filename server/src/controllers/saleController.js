@@ -46,6 +46,10 @@ export const createSale = async (req, res, next) => {
       const piecesPerBox = product.pieces_per_box || 1;
       const weightPerBox = product.weight_of_box || 0;
 
+      if (boxes === 0 && pieces === 0) {
+        throw new Error(`Cannot sell 0 quantity for ${product.name}`);
+      }
+
       // Validate box stock
       if (product.quantity < boxes) {
         throw new Error(`Insufficient box stock for ${product.name}. Available: ${product.quantity} boxes`);
@@ -62,13 +66,13 @@ export const createSale = async (req, res, next) => {
       // Decrement loose pieces
       if (pieces > 0) {
         product.ava_pieces -= pieces;
-        // If ava_pieces goes negative (edge-case), open a new box and distribute
-        if (product.ava_pieces < 0) {
+        // If ava_pieces goes negative, open new boxes until positive
+        while (product.ava_pieces < 0) {
           if (product.quantity < 1) {
             throw new Error(`Cannot open new box for ${product.name} — no more boxes in stock`);
           }
           product.quantity -= 1;
-          product.ava_pieces += piecesPerBox; // fill from newly opened box
+          product.ava_pieces += piecesPerBox;
         }
       }
 

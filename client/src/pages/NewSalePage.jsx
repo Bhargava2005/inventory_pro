@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Search, ShoppingCart, Trash2, Plus, Minus, 
   CreditCard, Banknote, User, Phone, X, Loader2, AlertCircle, Scan,
-  Package, Filter, RefreshCw, History, ChevronLeft, ChevronRight
+  Package, Filter, RefreshCw, History, ChevronLeft, ChevronRight,
+  Box, Maximize, Scale
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -103,6 +104,7 @@ export default function NewSalePage() {
   const isStaff = user?.role === 'staff';
   const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
   const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
+  const hidePaymentMethod = isStaff && settings?.privacy?.hideStaffPaymentMethod;
 
   // Recalculate amounts when subtotal or rates change
   useEffect(() => {
@@ -252,7 +254,7 @@ export default function NewSalePage() {
     });
     if (result.success) {
       toast.success('Sale completed! Invoice: ' + result.data.invoiceNumber);
-      generateInvoicePDF(result.data);
+      generateInvoicePDF(result.data, { hidePrice, hideTax, hidePaymentMethod });
       clearCart();
       setActiveTab('products');
       setShowCheckoutModal(false);
@@ -459,9 +461,14 @@ export default function NewSalePage() {
                       {p.quantity} {p.unit} (Boxes)
                     </span>
                     {p.pieces_per_box > 1 && (
-                      <span className="text-[9px] text-gray-400 font-medium">
-                        {p.ava_pieces} Separate Pcs
-                      </span>
+                      <>
+                        <span className="text-[9px] text-primary-500 dark:text-primary-400 font-semibold my-0.5">
+                          {p.pieces_per_box} Pcs / Box
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-medium">
+                          {p.ava_pieces} Separate Pcs
+                        </span>
+                      </>
                     )}
                   </div>
                 </div>
@@ -767,26 +774,57 @@ export default function NewSalePage() {
       {/* Add Product Confirmation Modal */}
       {showAddConfirm && productToConfirm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-slide-up border border-gray-100 dark:border-gray-800">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 w-full max-w-md shadow-2xl animate-slide-up border border-gray-100 dark:border-gray-800">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add to Cart</h3>
               <button onClick={() => setShowAddConfirm(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
             </div>
 
-            <div className="flex items-center gap-4 mb-6 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
-              <div className="w-16 h-16 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden flex-shrink-0">
+            <div className="flex items-start gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+              <div className="w-20 h-20 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden flex-shrink-0 mt-1">
                 {productToConfirm.image ? (
                   <img src={productToConfirm.image} alt={productToConfirm.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-300">
-                    <Package size={24} />
+                    <Package size={28} />
                   </div>
                 )}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{productToConfirm.name}</p>
-                {!hidePrice && <p className="text-xs text-primary-600 font-semibold">₹{productToConfirm.price.toLocaleString('en-IN')}</p>}
-                <p className="text-[10px] text-gray-400 mt-0.5">Stock: {productToConfirm.quantity} {productToConfirm.unit}</p>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <p className="text-sm sm:text-base font-bold text-gray-900 dark:text-white leading-tight">{productToConfirm.name}</p>
+                {productToConfirm.description && (
+                  <p className="text-[10px] sm:text-xs text-gray-500 line-clamp-2">{productToConfirm.description}</p>
+                )}
+                
+                <div className="flex items-center flex-wrap gap-2 pt-1">
+                  {!hidePrice && <span className="text-sm font-black text-primary-600 dark:text-primary-400">₹{productToConfirm.price.toLocaleString('en-IN')}</span>}
+                  <span className="text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-lg">
+                    {productToConfirm.quantity} {productToConfirm.unit} (Boxes)
+                  </span>
+                  {productToConfirm.pieces_per_box > 1 && (
+                    <span className="text-[10px] font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400 px-2 py-0.5 rounded-lg">
+                      {productToConfirm.ava_pieces} Loose Pcs
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-2 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                  {productToConfirm.pieces_per_box > 1 && (
+                    <span className="flex items-center gap-1 border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded bg-white dark:bg-gray-900">
+                      <Box className="w-3 h-3" /> {productToConfirm.pieces_per_box} Pcs / Box
+                    </span>
+                  )}
+                  {productToConfirm.dimensions && (
+                    <span className="flex items-center gap-1 border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded bg-white dark:bg-gray-900">
+                      <Maximize className="w-3 h-3" /> {productToConfirm.dimensions}
+                    </span>
+                  )}
+                  {productToConfirm.weight_of_box > 0 && (
+                    <span className="flex items-center gap-1 border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded bg-white dark:bg-gray-900">
+                      <Scale className="w-3 h-3" /> {productToConfirm.weight_of_box} KG / Box
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -805,11 +843,16 @@ export default function NewSalePage() {
                     <input 
                       type="number" 
                       className="w-12 bg-transparent text-center text-lg font-bold text-gray-900 dark:text-white outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      value={confirmQty}
-                      onChange={(e) => setConfirmQty(Math.max(0, parseInt(e.target.value) || 0))}
+                      value={confirmQty === 0 ? '' : confirmQty}
+                      placeholder="0"
+                      onChange={(e) => {
+                        let val = parseInt(e.target.value, 10);
+                        if (isNaN(val)) val = 0;
+                        setConfirmQty(Math.min(productToConfirm.quantity, Math.max(0, val)));
+                      }}
                     />
                     <button 
-                      onClick={() => setConfirmQty(confirmQty + 1)}
+                      onClick={() => setConfirmQty(Math.min(productToConfirm.quantity, confirmQty + 1))}
                       className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
                     >
                       <Plus className="w-4 h-4" />
@@ -829,8 +872,13 @@ export default function NewSalePage() {
                     <input 
                       type="number" 
                       className="w-12 bg-transparent text-center text-lg font-bold text-gray-900 dark:text-white outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      value={confirmPieces}
-                      onChange={(e) => setConfirmPieces(Math.max(0, parseInt(e.target.value) || 0))}
+                      value={confirmPieces === 0 ? '' : confirmPieces}
+                      placeholder="0"
+                      onChange={(e) => {
+                        let val = parseInt(e.target.value, 10);
+                        if (isNaN(val)) val = 0;
+                        setConfirmPieces(Math.max(0, val));
+                      }}
                     />
                     <button 
                       onClick={() => setConfirmPieces(confirmPieces + 1)}
@@ -907,32 +955,37 @@ export default function NewSalePage() {
                           <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{item.name}</p>
                           <div className="flex flex-col">
                             <p className="text-xs text-gray-500">
-                              {item.quantity} Boxes × ₹{item.price.toLocaleString('en-IN')}
+                              {item.quantity} Boxes {!hidePrice && `× ₹${item.price.toLocaleString('en-IN')}`}
                             </p>
                             {item.pieces > 0 && (
                               <p className="text-[10px] text-gray-400">
-                                {item.pieces} Pieces × ₹{(item.price / (item.pieces_per_box || 1)).toFixed(2)}
+                                {item.pieces} Pieces {!hidePrice && `× ₹${(item.price / (item.pieces_per_box || 1)).toFixed(2)}`}
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs font-black text-primary-600">
-                                Total: ₹{( (item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1))) ).toLocaleString('en-IN')}
-                              </span>
+                              {!hidePrice && (
+                                <span className="text-xs font-black text-primary-600">
+                                  Total: ₹{( (item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1))) ).toLocaleString('en-IN')}
+                                </span>
+                              )}
                               {item.isSample && <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Sample</span>}
                               {(item.isDamaged || item.isWrongProduct) && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Reporting</span>}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-gray-900 dark:text-white">
-                            ₹{( (item.isDamaged || item.isWrongProduct) ? 0 : ((item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1)))) ).toLocaleString('en-IN')}
-                          </p>
-                        </div>
+                        {!hidePrice && (
+                          <div className="text-right">
+                            <p className="text-sm font-black text-gray-900 dark:text-white">
+                              ₹{( (item.isDamaged || item.isWrongProduct) ? 0 : ((item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1)))) ).toLocaleString('en-IN')}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
 
-                  <div className="p-6 bg-primary-50 dark:bg-primary-900/10 rounded-2xl space-y-3">
+                  {!hidePrice && (
+                    <div className="p-6 bg-primary-50 dark:bg-primary-900/10 rounded-2xl space-y-3">
                     <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                       <span>Subtotal</span>
                       <span className="font-bold">₹{subtotal.toLocaleString('en-IN')}</span>
@@ -954,11 +1007,14 @@ export default function NewSalePage() {
                       <span className="text-2xl font-black text-primary-700 dark:text-primary-400">₹{finalTotal.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
+                )}
 
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Taxes & Discounts</h3>
-                    {renderTaxDiscountFields()}
-                  </div>
+                  {!hideTax && !hidePrice && (
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Taxes & Discounts</h3>
+                      {renderTaxDiscountFields()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Side: Customer Details */}
@@ -1013,29 +1069,31 @@ export default function NewSalePage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Payment Method</h3>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { id: 'cash', label: 'Cash', Icon: Banknote },
-                        { id: 'card', label: 'Card', Icon: CreditCard },
-                        { id: 'upi', label: 'UPI', Icon: AlertCircle },
-                      ].map(({ id, label, Icon }) => (
-                        <button
-                          key={id}
-                          onClick={() => setPaymentMethod(id)}
-                          className={`py-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${
-                            paymentMethod === id 
-                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' 
-                              : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-400'
-                          }`}
-                        >
-                          <Icon className="w-6 h-6" />
-                          <span className="text-xs font-bold">{label}</span>
-                        </button>
-                      ))}
+                  {!hidePaymentMethod && (
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Payment Method</h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { id: 'cash', label: 'Cash', Icon: Banknote },
+                          { id: 'card', label: 'Card', Icon: CreditCard },
+                          { id: 'upi', label: 'UPI', Icon: AlertCircle },
+                        ].map(({ id, label, Icon }) => (
+                          <button
+                            key={id}
+                            onClick={() => setPaymentMethod(id)}
+                            className={`py-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${
+                              paymentMethod === id 
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' 
+                                : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-400'
+                            }`}
+                          >
+                            <Icon className="w-6 h-6" />
+                            <span className="text-xs font-bold">{label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

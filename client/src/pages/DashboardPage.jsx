@@ -252,6 +252,8 @@ export default function DashboardPage() {
 
   const isStaff = user?.role === 'staff';
   const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod;
 
   useEffect(() => { 
     fetchSummary(); 
@@ -392,7 +394,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {!hidePrice && <span className="font-bold text-sm text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</span>}
-                      <button onClick={() => generateInvoicePDF(sale)} className="p-2 text-gray-300 hover:text-primary-600 transition-colors touch-target rounded-xl">
+                      <button onClick={() => generateInvoicePDF(sale, { hidePrice, hideTax, hidePaymentMethod: hidePayment })} className="p-2 text-gray-300 hover:text-primary-600 transition-colors touch-target rounded-xl">
                         <FileDown className="w-4 h-4" />
                       </button>
                     </div>
@@ -421,7 +423,7 @@ export default function DashboardPage() {
                         </td>
                         {!hidePrice && <td className="px-5 py-3 text-right font-medium text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</td>}
                         <td className="px-5 py-3 text-center">
-                          <button onClick={() => generateInvoicePDF(sale)} className="text-gray-400 hover:text-primary-600 transition-colors" title="Download Invoice">
+                          <button onClick={() => generateInvoicePDF(sale, { hidePrice, hideTax, hidePaymentMethod: hidePayment })} className="text-gray-400 hover:text-primary-600 transition-colors" title="Download Invoice">
                             <FileDown className="w-5 h-5 mx-auto" />
                           </button>
                         </td>
