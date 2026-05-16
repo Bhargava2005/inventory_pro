@@ -29,8 +29,8 @@ export default function LandingPage() {
       <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled ? 'py-3 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800' : 'py-6 bg-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           <div className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg shadow-primary-200 dark:shadow-none group-hover:scale-110 transition-transform">
-              <Package className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-primary-600/10 flex items-center justify-center shadow-lg shadow-primary-200/20 dark:shadow-none group-hover:scale-110 transition-transform overflow-hidden border border-primary-100/50 dark:border-primary-900/30">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
             </div>
             <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Inventory <span className="text-primary-600">Pro</span></span>
           </div>
@@ -81,9 +81,9 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        <div className="hero-glow top-0 left-1/4 md:animate-blob" />
-        <div className="hero-glow bottom-0 right-1/4 md:animate-blob animation-delay-2000" />
-        <div className="hero-glow -bottom-1/2 left-1/2 md:animate-blob animation-delay-4000" />
+        <div className="hero-glow top-0 left-1/4 animate-blob" />
+        <div className="hero-glow bottom-0 right-1/4 animate-blob animation-delay-2000" />
+        <div className="hero-glow -bottom-1/2 left-1/2 animate-blob animation-delay-4000" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -103,7 +103,7 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                <Link to="/register" className="btn-primary md:animate-shimmer text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-2xl shadow-xl shadow-primary-200 dark:shadow-none hover:scale-105 transition-all">
+                <Link to="/register" className="btn-primary animate-shimmer text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-2xl shadow-xl shadow-primary-200 dark:shadow-none hover:scale-105 transition-all">
                   Get Start <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Link>
               </div>
@@ -115,8 +115,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="hidden md:block relative md:animate-float pt-10 lg:pt-0">
-              <div className="absolute -inset-10 bg-gradient-to-tr from-primary-600/30 to-indigo-600/30 rounded-[40px] blur-[100px] md:animate-pulse" />
+            <div className="hidden md:block relative animate-float pt-10 lg:pt-0">
+              <div className="absolute -inset-10 bg-gradient-to-tr from-primary-600/30 to-indigo-600/30 rounded-[40px] blur-[100px] animate-pulse" />
               
               <div className="relative rounded-[32px] border border-white/20 dark:border-gray-800 shadow-2xl overflow-hidden bg-white dark:bg-gray-900 aspect-video group">
                 {/* CSS Mockup of a Dashboard */}
@@ -141,7 +141,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/10 to-transparent pointer-events-none" />
                 
                 {/* Floating Glass Cards — hidden on small screens to avoid overlap */}
-                <div className="hidden sm:flex absolute top-8 right-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl md:animate-float" style={{ animationDelay: '1s' }}>
+                <div className="hidden sm:flex absolute top-8 right-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl animate-float" style={{ animationDelay: '1s' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
                       <ShoppingCart className="w-4 h-4 text-white" />
@@ -153,7 +153,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="hidden sm:flex absolute bottom-8 left-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl md:animate-float" style={{ animationDelay: '2s' }}>
+                <div className="hidden sm:flex absolute bottom-8 left-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl animate-float" style={{ animationDelay: '2s' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
                       <BarChart3 className="w-4 h-4 text-white" />
@@ -217,7 +217,7 @@ export default function LandingPage() {
                 Join thousands of businesses worldwide that trust Inventory Pro for their daily operations. Start your free trial today.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/register" className="bg-white text-primary-600 px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-black text-base sm:text-lg hover:bg-gray-100 transition-colors shadow-2xl md:animate-shimmer">
+                <Link to="/register" className="bg-white text-primary-600 px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-black text-base sm:text-lg hover:bg-gray-100 transition-colors shadow-2xl animate-shimmer">
                   Get Start
                 </Link>
               </div>

@@ -174,12 +174,13 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-30px) rotate(1deg); }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -30px, 0) rotate(1deg); }
 }
 
 .animate-float {
   animation: float 8s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes blob {
@@ -190,7 +191,7 @@
 }
 
 .animate-blob {
-  animation: blob 10s infinite;
+  animation: blob 15s ease-in-out infinite;
 }
 
 @keyframes shimmer {
@@ -237,7 +238,8 @@
 }
 
 .hero-glow {
-  @apply absolute -z-10 w-[800px] h-[800px] bg-primary-500/30 rounded-full blur-[160px] mix-blend-multiply dark:mix-blend-soft-light opacity-50;
+  @apply absolute -z-10 w-[600px] h-[600px] bg-primary-500/20 rounded-full blur-[120px] dark:opacity-30 pointer-events-none;
+  will-change: transform;
 }
 
 .landing-section {

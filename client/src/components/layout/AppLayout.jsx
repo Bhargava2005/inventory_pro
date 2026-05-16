@@ -41,6 +41,7 @@ export default function AppLayout({ children }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleReplySubmit = async (e, id) => {
     e.preventDefault();
@@ -72,21 +73,26 @@ export default function AppLayout({ children }) {
   const currentPage = navItems.find(item => location.pathname.startsWith(item.to)) || { label: 'Inventory Pro' };
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     toast.success('Logged out successfully');
     navigate('/login');
+    setShowLogoutConfirm(false);
   };
 
   const sidebarContent = (
     <div className="flex flex-col h-full overflow-x-hidden min-w-0">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-100 dark:border-gray-800">
-        <div className="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center flex-shrink-0">
-          <Package className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-xl bg-primary-600/10 flex items-center justify-center flex-shrink-0 overflow-hidden border border-primary-100 dark:border-primary-900/30">
+          <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
         </div>
         <div>
-          <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">Inventory Pro</p>
-          <p className="text-xs text-gray-400">Management System</p>
+          <p className="font-extrabold text-gray-900 dark:text-white text-sm leading-tight tracking-tight">Inventory Pro</p>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Smart Management</p>
         </div>
       </div>
 
@@ -159,12 +165,12 @@ export default function AppLayout({ children }) {
           {/* Left: Logo (Mobile) */}
           <div className="flex items-center gap-2 min-w-0">
             <div className="md:hidden flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary-200 dark:shadow-none">
-                <Package className="w-4.5 h-4.5 text-white" />
+              <div className="w-9 h-9 rounded-xl bg-primary-600/10 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary-200/20 dark:shadow-none overflow-hidden border border-primary-100 dark:border-primary-900/30">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
               </div>
               <div>
-                <p className="font-extrabold text-gray-900 dark:text-white text-xs leading-none tracking-tight">Inventory Pro</p>
-                <p className="text-[9px] text-gray-400 font-medium uppercase tracking-widest mt-0.5">Management</p>
+                <p className="font-black text-gray-900 dark:text-white text-xs leading-none tracking-tight">Inventory Pro</p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-1">Management</p>
               </div>
             </div>
             {/* Desktop spacer */}
@@ -358,6 +364,35 @@ export default function AppLayout({ children }) {
           ))}
         </div>
       </nav>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up p-8 text-center border border-gray-100 dark:border-gray-800">
+            <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-200 dark:shadow-none">
+              <LogOut size={36} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Confirm Logout</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8 leading-relaxed">
+              Are you sure you want to sign out? You will need to log in again to access the system.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={confirmLogout}
+                className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-red-200 dark:shadow-none hover:bg-red-700 transition-all transform active:scale-95"
+              >
+                Yes, Sign Me Out
+              </button>
+              <button 
+                onClick={() => setShowLogoutConfirm(false)}
+                className="w-full py-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-2xl font-bold text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

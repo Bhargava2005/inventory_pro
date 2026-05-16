@@ -58,11 +58,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md animate-slide-up">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-600 shadow-lg mb-4">
-            <Package className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white dark:bg-gray-900 shadow-xl shadow-primary-200/50 dark:shadow-none mb-6 overflow-hidden border border-primary-50 dark:border-primary-900/30">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventory Pro</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm capitalize">
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Inventory Pro</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm font-medium uppercase tracking-[0.2em] opacity-70">
             {loginMode} Portal Login
           </p>
         </div>
