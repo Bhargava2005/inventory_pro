@@ -20,10 +20,18 @@ const SYSTEM_FIELDS = [
   { key: 'sampleStock', label: 'Sample Units', required: false, group: 'stock-state' },
   { key: 'exchangedStock', label: 'Exchanged Units', required: false, group: 'stock-state' },
   { key: 'wrongProductStock', label: 'Wrong Product Units', required: false, group: 'stock-state' },
+  // Piece-selling fields
+  { key: 'pieces_per_box', label: 'Pieces per Box', required: false, group: 'piece-selling' },
+  { key: 'ava_pieces', label: 'Available Loose Pieces', required: false, group: 'piece-selling' },
+  { key: 'weight_of_box', label: 'Box Weight (kg)', required: false, group: 'piece-selling' },
+  { key: 'dimensions', label: 'Dimensions (LxWxH)', required: false },
 ];
 
-export default function ImportMappingModal({ headers, onConfirm, onClose, isSubmitting }) {
+export default function ImportMappingModal({ headers, onConfirm, onClose, isSubmitting, branches, user }) {
   const [mapping, setMapping] = useState({});
+  const [branchId, setBranchId] = useState('');
+
+  const isAdmin = user?.role === 'admin';
 
   // Smart matching logic
   useEffect(() => {
@@ -59,7 +67,7 @@ export default function ImportMappingModal({ headers, onConfirm, onClose, isSubm
     setMapping(prev => ({ ...prev, [fieldKey]: headerName }));
   };
 
-  const isValid = SYSTEM_FIELDS.every(f => !f.required || mapping[f.key]);
+  const isValid = SYSTEM_FIELDS.every(f => !f.required || mapping[f.key]) && (!isAdmin || branchId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -75,10 +83,33 @@ export default function ImportMappingModal({ headers, onConfirm, onClose, isSubm
         </div>
 
         <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+          {isAdmin && (
+            <div className="mb-6 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30">
+              <label className="block text-xs font-bold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-2">
+                Target Branch <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                className={`input bg-white dark:bg-gray-800 ${!branchId ? 'border-primary-300' : ''}`}
+              >
+                <option value="">-- Select Destination Branch --</option>
+                {branches.map((b) => (
+                  <option key={b._id} value={b._id}>{b.name} ({b.code})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-primary-500 mt-2 italic">
+                Select the branch where these products should be added.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-3">
             {SYSTEM_FIELDS.map((field, idx) => {
               // Show a section header before the first stock-state field
               const isFirstStockState = field.group === 'stock-state' && SYSTEM_FIELDS[idx - 1]?.group !== 'stock-state';
+              const isFirstPieceSelling = field.group === 'piece-selling' && SYSTEM_FIELDS[idx - 1]?.group !== 'piece-selling';
+              const isPieceSelling = field.group === 'piece-selling';
               return (
                 <div key={field.key}>
                   {isFirstStockState && (
@@ -88,12 +119,19 @@ export default function ImportMappingModal({ headers, onConfirm, onClose, isSubm
                       <hr className="flex-1 border-gray-200 dark:border-gray-700" />
                     </div>
                   )}
-                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border ${field.group === 'stock-state' ? 'border-amber-100 dark:border-amber-900/30 bg-amber-50/30 dark:bg-amber-900/10' : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30'}`}>
+                  {isFirstPieceSelling && (
+                    <div className="flex items-center gap-2 pt-2 pb-1">
+                      <hr className="flex-1 border-blue-200 dark:border-blue-800" />
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Piece-Selling Fields (Optional)</span>
+                      <hr className="flex-1 border-blue-200 dark:border-blue-800" />
+                    </div>
+                  )}
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border ${field.group === 'stock-state' ? 'border-amber-100 dark:border-amber-900/30 bg-amber-50/30 dark:bg-amber-900/10' : field.group === 'piece-selling' ? 'border-blue-100 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10' : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30'}`}>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {field.label} {field.required && <span className="text-red-500">*</span>}
                       </p>
-                      <p className="text-xs text-gray-400">{field.group === 'stock-state' ? 'Stock-state field' : 'System field'}</p>
+                      <p className="text-xs text-gray-400">{field.group === 'stock-state' ? 'Stock-state field' : field.group === 'piece-selling' ? 'Piece-selling field' : 'System field'}</p>
                     </div>
 
                     <div className="flex-1 w-full sm:max-w-xs">
@@ -138,7 +176,7 @@ export default function ImportMappingModal({ headers, onConfirm, onClose, isSubm
             )}
             <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
             <button
-              onClick={() => onConfirm(mapping)}
+              onClick={() => onConfirm(mapping, branchId)}
               disabled={!isValid || isSubmitting}
               className="btn-primary flex-1 h-11"
             >

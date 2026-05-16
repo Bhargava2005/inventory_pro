@@ -81,13 +81,13 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        <div className="hero-glow top-0 left-1/4 animate-blob" />
-        <div className="hero-glow bottom-0 right-1/4 animate-blob animation-delay-2000" />
-        <div className="hero-glow -bottom-1/2 left-1/2 animate-blob animation-delay-4000" />
+        <div className="hero-glow top-0 left-1/4 md:animate-blob" />
+        <div className="hero-glow bottom-0 right-1/4 md:animate-blob animation-delay-2000" />
+        <div className="hero-glow -bottom-1/2 left-1/2 md:animate-blob animation-delay-4000" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="text-center lg:text-left space-y-8 animate-fade-in">
+            <div className="text-center lg:text-left space-y-8 md:animate-fade-in">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800/50">
                 <Zap size={14} className="fill-current" />
                 <span className="text-xs font-bold uppercase tracking-widest">Industry Leading Solution</span>
@@ -103,11 +103,8 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                <Link to="/register" className="btn-primary animate-shimmer text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-2xl shadow-xl shadow-primary-200 dark:shadow-none hover:scale-105 transition-all">
-                  Get Started Free <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </Link>
-                <Link to="/login" className="btn-secondary text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-2xl hover:bg-gray-50 transition-all border-2">
-                  View Live Demo
+                <Link to="/register" className="btn-primary md:animate-shimmer text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 rounded-2xl shadow-xl shadow-primary-200 dark:shadow-none hover:scale-105 transition-all">
+                  Get Start <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Link>
               </div>
               
@@ -118,13 +115,13 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="relative animate-float pt-10 lg:pt-0">
-              <div className="absolute -inset-10 bg-gradient-to-tr from-primary-600/30 to-indigo-600/30 rounded-[40px] blur-[100px] animate-pulse" />
+            <div className="hidden md:block relative md:animate-float pt-10 lg:pt-0">
+              <div className="absolute -inset-10 bg-gradient-to-tr from-primary-600/30 to-indigo-600/30 rounded-[40px] blur-[100px] md:animate-pulse" />
               
               <div className="relative rounded-[32px] border border-white/20 dark:border-gray-800 shadow-2xl overflow-hidden bg-white dark:bg-gray-900 aspect-video group">
                 {/* CSS Mockup of a Dashboard */}
                 <div className="w-full h-full p-4 sm:p-6 flex flex-col gap-3 sm:gap-4">
-                  <div className="h-6 sm:h-8 w-1/3 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+                  <div className="h-6 sm:h-8 w-1/3 bg-gray-100 dark:bg-gray-800 rounded-lg md:animate-pulse" />
                   <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     {[1, 2, 3].map(i => (
                       <div key={i} className="h-16 sm:h-24 bg-gray-50 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-800 p-2 sm:p-4 flex flex-col justify-between">
@@ -144,7 +141,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/10 to-transparent pointer-events-none" />
                 
                 {/* Floating Glass Cards — hidden on small screens to avoid overlap */}
-                <div className="hidden sm:flex absolute top-8 right-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl animate-float" style={{ animationDelay: '1s' }}>
+                <div className="hidden sm:flex absolute top-8 right-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl md:animate-float" style={{ animationDelay: '1s' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
                       <ShoppingCart className="w-4 h-4 text-white" />
@@ -156,7 +153,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="hidden sm:flex absolute bottom-8 left-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl animate-float" style={{ animationDelay: '2s' }}>
+                <div className="hidden sm:flex absolute bottom-8 left-8 p-4 rounded-2xl bg-glass border-white/20 shadow-xl md:animate-float" style={{ animationDelay: '2s' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
                       <BarChart3 className="w-4 h-4 text-white" />
@@ -170,26 +167,6 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-12 sm:py-20 bg-gray-50 dark:bg-gray-900/50">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:flex md:flex-wrap justify-center gap-8 sm:gap-12 lg:gap-32 text-center">
-          {[
-            { label: 'Active Users', value: '10K+', icon: Globe },
-            { label: 'Transactions', value: '1M+', icon: Zap },
-            { label: 'Customer Rating', value: '4.9/5', icon: CheckCircle2 },
-            { label: 'Uptime', value: '99.9%', icon: Clock },
-          ].map((stat, i) => (
-            <div key={i} className="space-y-2">
-              <p className="text-4xl font-black text-gray-900 dark:text-white">{stat.value}</p>
-              <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
-                <stat.icon size={16} />
-                <span className="text-sm font-bold uppercase tracking-wider">{stat.label}</span>
-              </div>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -229,82 +206,6 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
-
-      {/* Solutions Section - Added as per user request */}
-      <section id="solutions" className="landing-section bg-gray-50 dark:bg-gray-900/30">
-        <div className="text-center space-y-6 mb-20">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 text-[10px] font-black uppercase tracking-[0.2em]">
-            Industry Focus
-          </div>
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
-            Tailored for Your <span className="text-gradient">Industry</span>
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-lg font-medium leading-relaxed">
-            Whether you run a single boutique or a nationwide retail chain, our solution adapts to your unique workflow.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
-          <div className="p-6 sm:p-10 rounded-[32px] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl group hover:-translate-y-1 transition-all">
-            <h4 className="text-2xl font-black text-gray-900 dark:text-white mb-4">Retail & Commerce</h4>
-            <ul className="space-y-4">
-              {['Inventory synchronization across branches', 'Multi-channel sales tracking', 'Customer loyalty management'].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 text-gray-600 dark:text-gray-400 font-medium">
-                  <CheckCircle2 className="text-emerald-500 w-5 h-5 flex-shrink-0" /> {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="p-6 sm:p-10 rounded-[32px] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl group hover:-translate-y-1 transition-all">
-            <h4 className="text-2xl font-black text-gray-900 dark:text-white mb-4">Warehouse &amp; Logistics</h4>
-            <ul className="space-y-4">
-              {['Batch tracking and expiration alerts', 'Optimized pick and pack workflows', 'Real-time stock level monitoring'].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 text-gray-600 dark:text-gray-400 font-medium">
-                  <CheckCircle2 className="text-indigo-500 w-5 h-5 flex-shrink-0" /> {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section - Added as per user request */}
-      <section id="pricing" className="landing-section">
-        <div className="text-center space-y-6 mb-20">
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
-            Simple, Transparent <span className="text-gradient">Pricing</span>
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg font-medium">
-            Start free and scale as your business grows. No hidden fees, ever.
-          </p>
-        </div>
-
-        <div className="max-w-md mx-auto p-10 rounded-[40px] bg-gradient-to-br from-primary-600 to-indigo-700 text-white shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-            <Zap size={120} />
-          </div>
-          <div className="relative z-10 space-y-8">
-            <div>
-              <p className="text-sm font-black uppercase tracking-widest opacity-80 mb-2">Pro Plan</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl sm:text-5xl font-black">₹4,999</span>
-                <span className="text-lg sm:text-xl opacity-70">/month</span>
-              </div>
-            </div>
-            <ul className="space-y-4 font-bold">
-              {['Unlimited Products', 'All Locations', 'Advanced Analytics', 'Priority 24/7 Support'].map((item, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-primary-200" /> {item}
-                </li>
-              ))}
-            </ul>
-            <Link to="/register" className="block w-full py-4 bg-white text-primary-600 rounded-2xl text-center font-black text-lg hover:bg-gray-100 transition-colors shadow-xl animate-shimmer">
-              Start Free Trial
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 lg:py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4">
@@ -316,11 +217,8 @@ export default function LandingPage() {
                 Join thousands of businesses worldwide that trust Inventory Pro for their daily operations. Start your free trial today.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/register" className="bg-white text-primary-600 px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-black text-base sm:text-lg hover:bg-gray-100 transition-colors shadow-2xl animate-shimmer">
-                  Get Started for Free
-                </Link>
-                <Link to="/login" className="border-2 border-white/30 text-white px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-black text-base sm:text-lg hover:bg-white/10 transition-colors">
-                  Contact Sales
+                <Link to="/register" className="bg-white text-primary-600 px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-black text-base sm:text-lg hover:bg-gray-100 transition-colors shadow-2xl md:animate-shimmer">
+                  Get Start
                 </Link>
               </div>
             </div>
@@ -329,57 +227,10 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-50 dark:bg-gray-900/80 pt-20 pb-10 border-t border-gray-100 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-8 mb-16">
-          <div className="col-span-2 lg:col-span-1 space-y-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
-                <Package className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight uppercase">Inventory Pro</span>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-              Leading the way in modern inventory management. Empowering businesses with data-driven insights and automated workflows.
-            </p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="p-2 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-primary-600 transition-colors"><Twitter size={18} /></a>
-              <a href="#" className="p-2 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-primary-600 transition-colors"><Linkedin size={18} /></a>
-              <a href="#" className="p-2 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-primary-600 transition-colors"><Github size={18} /></a>
-            </div>
-          </div>
-          
-          <div>
-            <h5 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-xs mb-6">Product</h5>
-            <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400 font-bold">
-              <li><a href="#" className="hover:text-primary-600 transition-colors">Features</a></li>
-              <li><a href="#" className="hover:text-primary-600 transition-colors">POS System</a></li>
-              <li><a href="#" className="hover:text-primary-600 transition-colors">Analytics</a></li>
-              <li><a href="#" className="hover:text-primary-600 transition-colors">Security</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h5 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-xs mb-6">Company</h5>
-            <ul className="space-y-4 text-sm text-gray-500 dark:text-gray-400 font-bold">
-              <li><a href="#" className="hover:text-primary-600 transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-primary-600 transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-primary-600 transition-colors">Contact</a></li>
-              <li><a href="#" className="hover:text-primary-600 transition-colors">Privacy</a></li>
-            </ul>
-          </div>
-
-          <div className="col-span-2 sm:col-span-1">
-            <h5 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-xs mb-6">Newsletter</h5>
-            <p className="text-xs text-gray-500 mb-4">Stay updated with our latest news and features.</p>
-            <div className="flex gap-2">
-              <input type="email" placeholder="Email" className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-xs flex-1 outline-none focus:ring-2 focus:ring-primary-500/20" />
-              <button className="btn-primary px-4 py-2 rounded-xl"><ArrowRight size={16} /></button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 pt-8 border-t border-gray-100 dark:border-gray-800 text-center">
+      <footer className="bg-gray-50 dark:bg-gray-900/80 py-10 border-t border-gray-100 dark:border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            © 2024 Inventory Pro. All rights reserved. Designed for Excellence.
+            © 2026 Win Win Technologies . All rights reserved. Designed for Excellence.
           </p>
         </div>
       </footer>

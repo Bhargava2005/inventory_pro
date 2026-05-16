@@ -1,4 +1,6 @@
-import { TrendingUp, ShoppingBag, AlertTriangle, RefreshCcw, Package, HelpCircle, ChevronDown, ChevronLeft, ChevronRight, Hash } from 'lucide-react';
+import { TrendingUp, ShoppingBag, AlertTriangle, RefreshCcw, Package, HelpCircle, ChevronDown, ChevronLeft, ChevronRight, Hash, ChevronUp } from 'lucide-react';
+import useAuthStore from '../../store/authStore.js';
+import useSettingsStore from '../../store/settingsStore.js';
 
 export default function AnalysisTable({ 
   data, 
@@ -11,8 +13,16 @@ export default function AnalysisTable({
   dateRange,
   pagination = { page: 1, totalPages: 1 },
   onPageChange,
-  isUpdating = false
+  isUpdating = false,
+  sortBy = { field: 'salesCount', direction: -1 },
+  onSortChange
 }) {
+  const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
+
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+
   if (!data || (data.length === 0 && !isUpdating)) {
     return (
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-10 text-center">
@@ -37,6 +47,19 @@ export default function AnalysisTable({
 
   const allowedIntervals = getAllowedIntervals();
 
+  const handleSort = (field) => {
+    if (sortBy.field === field) {
+      onSortChange({ field, direction: sortBy.direction === -1 ? 1 : -1 });
+    } else {
+      onSortChange({ field, direction: -1 });
+    }
+  };
+
+  const SortIcon = ({ field }) => {
+    if (sortBy.field !== field) return null;
+    return sortBy.direction === -1 ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />;
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className={`bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm transition-opacity duration-200 ${isUpdating ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
@@ -55,20 +78,28 @@ export default function AnalysisTable({
                   </th>
                 )}
                 {type === 'product' && (
-                  <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-32">SKU</th>
+                  <th 
+                    onClick={() => handleSort('sku')}
+                    className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-32 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">SKU <SortIcon field="sku" /></div>
+                  </th>
                 )}
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <th 
+                  onClick={() => handleSort(type === 'product' ? 'name' : '_id')}
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                >
                   <div className="flex items-center gap-2">
-                    {type === 'product' ? 'Product Name' : 'Date / Period'}
+                    {type === 'product' ? 'Product Name' : 'Date / Period'} <SortIcon field={type === 'product' ? 'name' : '_id'} />
                     {type === 'time' && allowedIntervals.length > 1 && (
                       <div className="relative group">
                         <select 
                           value={groupBy}
                           onChange={(e) => onGroupByChange(e.target.value)}
-                          className="appearance-none bg-gray-100 dark:bg-gray-700 border-none rounded-lg py-0.5 pl-2 pr-6 text-[10px] font-bold cursor-pointer hover:bg-gray-200 transition focus:ring-0 outline-none"
+                          className="appearance-none bg-gray-100 dark:bg-gray-700 border-none rounded-lg py-0.5 pl-2 pr-6 text-[10px] font-bold cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition focus:ring-0 outline-none dark:text-white"
                         >
                           {allowedIntervals.map(i => (
-                            <option key={i.value} value={i.value}>{i.label}</option>
+                            <option key={i.value} value={i.value} className="dark:bg-gray-800">{i.label}</option>
                           ))}
                         </select>
                         <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
@@ -76,12 +107,26 @@ export default function AnalysisTable({
                     )}
                   </div>
                 </th>
-                <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Items Sold</th>
-                <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Revenue</th>
-                <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Samples</th>
-                <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Damages</th>
-                <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Exchanges</th>
-                <th className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Wrong Del.</th>
+                <th onClick={() => handleSort('salesCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Items Sold <SortIcon field="salesCount" /></div>
+                </th>
+                {!hidePrice && (
+                  <th onClick={() => handleSort('totalSales')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center justify-end gap-1">Revenue <SortIcon field="totalSales" /></div>
+                  </th>
+                )}
+                <th onClick={() => handleSort('sampleCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Samples <SortIcon field="sampleCount" /></div>
+                </th>
+                <th onClick={() => handleSort('damagedCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Damages <SortIcon field="damagedCount" /></div>
+                </th>
+                <th onClick={() => handleSort('exchangeCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Exchanges <SortIcon field="exchangeCount" /></div>
+                </th>
+                <th onClick={() => handleSort('wrongProductCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Wrong Del. <SortIcon field="wrongProductCount" /></div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -122,9 +167,11 @@ export default function AnalysisTable({
                     <td className="px-4 py-4 text-right">
                       <span className="text-sm font-bold text-gray-900 dark:text-white">{row.salesCount}</span>
                     </td>
-                    <td className="px-4 py-4 text-right">
-                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">₹{(row.totalSales || 0).toLocaleString('en-IN')}</span>
-                    </td>
+                    {!hidePrice && (
+                      <td className="px-4 py-4 text-right">
+                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">₹{(row.totalSales || 0).toLocaleString('en-IN')}</span>
+                      </td>
+                    )}
                     <td className="px-4 py-4 text-right">
                       <span className="text-sm text-gray-600 dark:text-gray-400">{row.sampleCount}</span>
                     </td>

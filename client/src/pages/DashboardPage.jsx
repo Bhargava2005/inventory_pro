@@ -6,6 +6,7 @@ import useDashboardStore from '../store/dashboardStore.js';
 import { generateInvoicePDF, generateMismatchReportPDF } from '../utils/pdfGenerator.js';
 import { useState } from 'react';
 import useProductStore from '../store/productStore.js';
+import useSettingsStore from '../store/settingsStore.js';
 import BannerDisplay from '../components/dashboard/BannerDisplay.jsx';
 
 function ActivityModal({ activity, onClose }) {
@@ -247,6 +248,10 @@ export default function DashboardPage() {
   const { products, fetchProducts } = useProductStore();
   const [showInspection, setShowInspection] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const { settings } = useSettingsStore();
+
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
 
   useEffect(() => { 
     fetchSummary(); 
@@ -324,12 +329,14 @@ export default function DashboardPage() {
       {/* ── KPI Cards ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Revenue — spans 2 cols on mobile */}
-        <div className="card p-4 sm:p-5 bg-gradient-to-br from-primary-600 to-primary-700 text-white col-span-2 lg:col-span-1 rounded-2xl">
-          <DollarSign className="w-5 h-5 mb-2 opacity-80" />
-          <p className="text-xs sm:text-sm opacity-90 mb-1">Today's Revenue</p>
-          <p className="text-2xl sm:text-3xl font-bold">₹{revenueToday.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
-          <p className="text-xs opacity-75 mt-1.5">{salesToday} sales completed</p>
-        </div>
+        {!hidePrice && (
+          <div className="card p-4 sm:p-5 bg-gradient-to-br from-primary-600 to-primary-700 text-white col-span-2 lg:col-span-1 rounded-2xl">
+            <DollarSign className="w-5 h-5 mb-2 opacity-80" />
+            <p className="text-xs sm:text-sm opacity-90 mb-1">Today's Revenue</p>
+            <p className="text-2xl sm:text-3xl font-bold">₹{revenueToday.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+            <p className="text-xs opacity-75 mt-1.5">{salesToday} sales completed</p>
+          </div>
+        )}
 
         <div className="card p-4 border-l-4 border-l-blue-500 rounded-2xl">
           <Package className="w-5 h-5 mb-2 text-blue-500" />
@@ -384,7 +391,7 @@ export default function DashboardPage() {
                       <p className="text-[10px] text-gray-400">{new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="font-bold text-sm text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</span>
+                      {!hidePrice && <span className="font-bold text-sm text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</span>}
                       <button onClick={() => generateInvoicePDF(sale)} className="p-2 text-gray-300 hover:text-primary-600 transition-colors touch-target rounded-xl">
                         <FileDown className="w-4 h-4" />
                       </button>
@@ -400,7 +407,7 @@ export default function DashboardPage() {
                     <tr>
                       <th className="text-left px-5 py-3 font-medium text-gray-500 text-xs">Invoice</th>
                       <th className="text-left px-5 py-3 font-medium text-gray-500 text-xs">Customer</th>
-                      <th className="text-right px-5 py-3 font-medium text-gray-500 text-xs">Amount</th>
+                      {!hidePrice && <th className="text-right px-5 py-3 font-medium text-gray-500 text-xs">Amount</th>}
                       <th className="text-center px-5 py-3 font-medium text-gray-500 text-xs">Action</th>
                     </tr>
                   </thead>
@@ -412,7 +419,7 @@ export default function DashboardPage() {
                           <p className="text-gray-900 dark:text-white text-sm">{sale.customer?.name || 'Walk-in'}</p>
                           <p className="text-xs text-gray-500">{new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </td>
-                        <td className="px-5 py-3 text-right font-medium text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</td>
+                        {!hidePrice && <td className="px-5 py-3 text-right font-medium text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</td>}
                         <td className="px-5 py-3 text-center">
                           <button onClick={() => generateInvoicePDF(sale)} className="text-gray-400 hover:text-primary-600 transition-colors" title="Download Invoice">
                             <FileDown className="w-5 h-5 mx-auto" />

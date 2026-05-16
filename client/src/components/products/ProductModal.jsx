@@ -20,6 +20,10 @@ const schema = z.object({
   sampleStock: z.coerce.number().min(0).optional().default(0),
   exchangedStock: z.coerce.number().min(0).optional().default(0),
   wrongProductStock: z.coerce.number().min(0).optional().default(0),
+  pieces_per_box: z.coerce.number().min(1).optional().default(1),
+  ava_pieces: z.coerce.number().min(0).optional().default(0),
+  weight_of_box: z.coerce.number().min(0).optional().default(0),
+  dimensions: z.string().max(100).optional().default(''),
   supplier: z.string().max(100).optional(),
   image: z.string().url('Invalid URL format').optional().or(z.literal('')),
   color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid hex color').optional().or(z.literal('')),
@@ -46,6 +50,10 @@ export default function ProductModal({ product, onClose, onSaved }) {
       sampleStock: product.sampleStock || 0,
       exchangedStock: product.exchangedStock || 0,
       wrongProductStock: product.wrongProductStock || 0,
+      pieces_per_box: product.pieces_per_box || 1,
+      ava_pieces: product.ava_pieces || 0,
+      weight_of_box: product.weight_of_box || 0,
+      dimensions: product.dimensions || '',
       supplier: product.supplier,
       image: product.image || '',
       color: product.color || '#3b82f6',
@@ -57,7 +65,10 @@ export default function ProductModal({ product, onClose, onSaved }) {
       damagedStock: 0,
       sampleStock: 0,
       exchangedStock: 0,
-      wrongProductStock: 0
+      wrongProductStock: 0,
+      pieces_per_box: 1,
+      ava_pieces: 0,
+      weight_of_box: 0,
     },
   });
 
@@ -120,10 +131,16 @@ export default function ProductModal({ product, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Brand */}
-          <div>
-            <label className="label">Brand / Manufacturer</label>
-            <input {...register('brand')} className="input" placeholder="e.g. Kajaria, Somany" />
+          {/* Brand + Dimensions Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Brand / Manufacturer</label>
+              <input {...register('brand')} className="input" placeholder="e.g. Kajaria, Somany" />
+            </div>
+            <div>
+              <label className="label">Dimensions <span className="text-gray-400 text-[10px]">(e.g. 10x20)</span></label>
+              <input {...register('dimensions')} className="input" placeholder="10x20x30" />
+            </div>
           </div>
 
           {/* Price + Cost row */}
@@ -156,7 +173,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Secondary Inventory Section */}
+          {/* Advanced Inventory Pools */}
           <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
             <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Advanced Inventory Pools</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -175,6 +192,27 @@ export default function ProductModal({ product, onClose, onSaved }) {
               <div>
                 <label className="label text-[10px]">Wrong Product Stock</label>
                 <input {...register('wrongProductStock')} type="number" className="input bg-white dark:bg-gray-900" placeholder="0" />
+              </div>
+            </div>
+          </div>
+
+          {/* Piece-Selling Config */}
+          <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
+            <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Piece-Selling Config</h3>
+            <p className="text-[10px] text-blue-400 mb-3">Allow selling individual pieces from a box</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="label text-[10px]">Pieces / Box <span className="text-red-400">*</span></label>
+                <input {...register('pieces_per_box')} type="number" min="1" className="input bg-white dark:bg-gray-900" placeholder="12" />
+                {errors.pieces_per_box && <p className="error-text"><AlertCircle className="w-3 h-3" />{errors.pieces_per_box.message}</p>}
+              </div>
+              <div>
+                <label className="label text-[10px]">Available Pieces</label>
+                <input {...register('ava_pieces')} type="number" min="0" className="input bg-white dark:bg-gray-900" placeholder="0" />
+              </div>
+              <div>
+                <label className="label text-[10px]">Box Weight (kg)</label>
+                <input {...register('weight_of_box')} type="number" min="0" step="0.01" className="input bg-white dark:bg-gray-900" placeholder="8.5" />
               </div>
             </div>
           </div>

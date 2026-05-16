@@ -10,6 +10,7 @@ import {
   deleteProduct,
   importProducts,
   scanImportFile,
+  getBrands,
 } from '../controllers/productController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -19,6 +20,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.use(protect);
 
 router.get('/stats', getProductStats);
+router.get('/brands', getBrands);
 router.get('/', getProducts);
 router.get('/:id', getProduct);
 router.post('/', authorize('admin', 'manager'), createProduct);

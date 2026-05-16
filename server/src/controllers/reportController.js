@@ -8,7 +8,18 @@ import Sale from '../models/Sale.js';
 // @access  Private (Admin, Manager)
 export const exportInventory = async (req, res, next) => {
   try {
-    const products = await Product.find({ isActive: true }).populate('category', 'name');
+    const { branchId } = req.query;
+    const query = { isActive: true };
+
+    // Apply branch filter if provided and user is admin
+    if (req.user.role === 'admin' && branchId) {
+      query.branchId = branchId;
+    } else if (req.user.role !== 'admin' && req.user.branchId) {
+      // Non-admins are locked to their own branch
+      query.branchId = req.user.branchId;
+    }
+
+    const products = await Product.find(query).populate('category', 'name');
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Inventory');
@@ -18,9 +29,13 @@ export const exportInventory = async (req, res, next) => {
       { header: 'Product Name', key: 'name', width: 30 },
       { header: 'Brand', key: 'brand', width: 15 },
       { header: 'Category', key: 'category', width: 20 },
+      { header: 'Dimensions', key: 'dimensions', width: 15 },
       { header: 'Selling Price', key: 'price', width: 15 },
       { header: 'Cost Price', key: 'costPrice', width: 15 },
-      { header: 'Main Quantity', key: 'quantity', width: 12 },
+      { header: 'Boxes Stock', key: 'quantity', width: 12 },
+      { header: 'Separate Pieces', key: 'ava_pieces', width: 15 },
+      { header: 'Pieces Per Box', key: 'pieces_per_box', width: 15 },
+      { header: 'Box Weight (KG)', key: 'weight_of_box', width: 15 },
       { header: 'Sample Stock', key: 'sampleStock', width: 12 },
       { header: 'Damaged Stock', key: 'damagedStock', width: 12 },
       { header: 'Exchanged Stock', key: 'exchangedStock', width: 12 },
@@ -40,9 +55,13 @@ export const exportInventory = async (req, res, next) => {
         name: p.name,
         brand: p.brand || '',
         category: p.category?.name || 'Uncategorized',
+        dimensions: p.dimensions || '',
         price: p.price,
         costPrice: p.costPrice || 0,
         quantity: p.quantity,
+        ava_pieces: p.ava_pieces || 0,
+        pieces_per_box: p.pieces_per_box || 1,
+        weight_of_box: p.weight_of_box || 0,
         sampleStock: p.sampleStock || 0,
         damagedStock: p.damagedStock || 0,
         exchangedStock: p.exchangedStock || 0,
@@ -176,7 +195,10 @@ export const getAnalysisData = async (req, res, next) => {
       }
     }
 
-    const { categoryId, search, productIds, groupBy = 'day', page = 1, limit = 10 } = req.query;
+    const { 
+      categoryId, brand, search, productIds, groupBy = 'day', page = 1, limit = 10,
+      transactionType = 'all', sortByField = 'salesCount', sortByDir = -1 
+    } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
     // Base filter for general search/category
@@ -216,6 +238,35 @@ export const getAnalysisData = async (req, res, next) => {
         $match: { 'productInfo.category': new mongoose.Types.ObjectId(categoryId) }
       });
     }
+
+    if (brand) {
+      productPipeline.push({
+        $match: { 'productInfo.brand': brand }
+      });
+    }
+
+    // Transaction Type Filter
+    if (transactionType !== 'all') {
+      if (transactionType === 'sale') {
+        productPipeline.push({
+          $match: {
+            'items.isSample': false,
+            'items.isDamaged': false,
+            'items.isExchange': false,
+            'items.isWrongProduct': false
+          }
+        });
+      } else if (transactionType === 'sample') {
+        productPipeline.push({ $match: { 'items.isSample': true } });
+      } else if (transactionType === 'damaged') {
+        productPipeline.push({ $match: { 'items.isDamaged': true } });
+      } else if (transactionType === 'exchange') {
+        productPipeline.push({ $match: { 'items.isExchange': true } });
+      } else if (transactionType === 'wrong') {
+        productPipeline.push({ $match: { 'items.isWrongProduct': true } });
+      }
+    }
+
 
     // Trend pipeline (Inherits filters + specific product selection)
     const trendPipeline = [...productPipeline];
@@ -271,7 +322,7 @@ export const getAnalysisData = async (req, res, next) => {
           wrongProductCount: { $sum: { $cond: ['$items.isWrongProduct', '$items.quantity', 0] } },
         }
       },
-      { $sort: { salesCount: -1 } },
+      { $sort: { [sortByField]: parseInt(sortByDir) || -1 } },
       {
         $facet: {
           metadata: [{ $count: 'total' }],
@@ -330,7 +381,10 @@ export const exportAnalysisExcel = async (req, res, next) => {
       }
     }
 
-    const { categoryId, search, productIds, groupBy = 'day' } = req.query;
+    const { 
+      categoryId, brand, search, productIds, groupBy = 'day',
+      transactionType = 'all', sortByField = 'salesCount', sortByDir = -1
+    } = req.query;
     const baseMatch = { ...query };
     
     const productPipeline = [
@@ -367,6 +421,35 @@ export const exportAnalysisExcel = async (req, res, next) => {
         $match: { 'productInfo.category': new mongoose.Types.ObjectId(categoryId) }
       });
     }
+
+    if (brand) {
+      productPipeline.push({
+        $match: { 'productInfo.brand': brand }
+      });
+    }
+
+    // Transaction Type Filter
+    if (transactionType !== 'all') {
+      if (transactionType === 'sale') {
+        productPipeline.push({
+          $match: {
+            'items.isSample': false,
+            'items.isDamaged': false,
+            'items.isExchange': false,
+            'items.isWrongProduct': false
+          }
+        });
+      } else if (transactionType === 'sample') {
+        productPipeline.push({ $match: { 'items.isSample': true } });
+      } else if (transactionType === 'damaged') {
+        productPipeline.push({ $match: { 'items.isDamaged': true } });
+      } else if (transactionType === 'exchange') {
+        productPipeline.push({ $match: { 'items.isExchange': true } });
+      } else if (transactionType === 'wrong') {
+        productPipeline.push({ $match: { 'items.isWrongProduct': true } });
+      }
+    }
+
 
     const trendPipeline = [...productPipeline];
     let ids = productIds;
@@ -413,7 +496,7 @@ export const exportAnalysisExcel = async (req, res, next) => {
             wrongProductCount: { $sum: { $cond: ['$items.isWrongProduct', '$items.quantity', 0] } },
           }
         },
-        { $sort: { salesCount: -1 } }
+        { $sort: { [sortByField]: parseInt(sortByDir) || -1 } }
       ])
     ]);
 

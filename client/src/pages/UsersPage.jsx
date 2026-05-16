@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { User, Shield, Store, Loader2, Pencil, Trash2, X, Check, Plus, Search, Phone, Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Shield, Store, Loader2, Pencil, Trash2, X, Check, Plus, Search, Phone, Eye, EyeOff, Brain } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useUserStore from '../store/userStore.js';
 import useBranchStore from '../store/branchStore.js';
@@ -63,30 +64,24 @@ function UserEditModal({ user, onClose }) {
                   <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input" placeholder="john@example.com" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Mobile Number</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="+91 98765 43210" />
-                </div>
-                <div>
-                  <label className="label">Temporary Password <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input 
-                      required 
-                      type={showPassword ? "text" : "password"} 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
-                      className="input pr-10" 
-                      placeholder="••••••••" 
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+              <div>
+                <label className="label">Temporary Password <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input 
+                    required 
+                    type={showPassword ? "text" : "password"} 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    className="input pr-10" 
+                    placeholder="••••••••" 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             </>
@@ -166,6 +161,7 @@ export default function UsersPage({ hideHeader }) {
   const { users, fetchUsers, isLoading, deactivateUser } = useUserStore();
   const { branches, fetchBranches } = useBranchStore();
   const { user: currentUser } = useAuthStore();
+  const navigate = useNavigate();
   const [editUser, setEditUser] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   
@@ -250,6 +246,25 @@ export default function UsersPage({ hideHeader }) {
         <>
           {/* ── MOBILE CARD LIST (hidden on md+) ───────────────────────────── */}
           <div className="md:hidden space-y-3">
+            {/* Mobile-only: Behaviors shortcut */}
+            <button
+              onClick={() => navigate('/employee-behavior')}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-100 dark:border-violet-800/40 hover:shadow-md transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 flex-shrink-0">
+                  <Brain size={18} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">Employee Behavior</p>
+                  <p className="text-[10px] text-gray-400 font-medium">Activity, attendance &amp; integrity</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs font-bold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/40 px-2.5 py-1 rounded-lg">
+                View →
+              </div>
+            </button>
+
             {users.map((u) => (
               <div key={u._id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
                 <div className="flex items-start gap-3">

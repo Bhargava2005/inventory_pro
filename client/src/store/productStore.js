@@ -4,13 +4,14 @@ import { productAPI } from '../api/products.js';
 const useProductStore = create((set, get) => ({
   products: [],
   categories: [],
+  brands: [],
   stats: null,
   total: 0,
   totalPages: 1,
   page: 1,
   isLoading: false,
   isSubmitting: false,
-  filters: { search: '', category: 'all', sort: '-createdAt', status: '' },
+  filters: { search: '', category: 'all', sort: '-createdAt', status: '', branchId: '' },
 
   setFilters: (filters) => set((s) => ({ filters: { ...s.filters, ...filters }, page: 1 })),
   setPage: (page) => set({ page }),
@@ -35,9 +36,12 @@ const useProductStore = create((set, get) => ({
     }
   },
 
-  fetchStats: async () => {
+  fetchStats: async (params = {}) => {
     try {
-      const { data } = await productAPI.getStats();
+      const { filters } = get();
+      const queryParams = { ...filters, ...params };
+      if (!queryParams.branchId) delete queryParams.branchId;
+      const { data } = await productAPI.getStats(queryParams);
       set({ stats: data.data });
     } catch {}
   },
@@ -97,6 +101,13 @@ const useProductStore = create((set, get) => ({
     try {
       const { data } = await productAPI.getCategories();
       set({ categories: data.data });
+    } catch {}
+  },
+  
+  fetchBrands: async (params = {}) => {
+    try {
+      const { data } = await productAPI.getBrands(params);
+      set({ brands: data.data });
     } catch {}
   },
 

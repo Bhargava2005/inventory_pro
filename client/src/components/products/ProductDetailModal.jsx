@@ -1,10 +1,18 @@
-import { X, Download, Package, Tag, Info, AlertTriangle, ShieldCheck, History, Calendar, User, ShoppingCart, DollarSign } from 'lucide-react';
+import { X, Download, Package, Tag, Info, AlertTriangle, ShieldCheck, History, Calendar, User, ShoppingCart, DollarSign, Layers, Weight, ShieldAlert, Boxes, Scale } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import useAuthStore from '../../store/authStore.js';
+import useSettingsStore from '../../store/settingsStore.js';
 import toast from 'react-hot-toast';
 
 export default function ProductDetailModal({ product, onClose }) {
+  const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
+  
   if (!product) return null;
+
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
 
   const handleDownloadPDF = () => {
     try {
@@ -34,12 +42,19 @@ export default function ProductDetailModal({ product, onClose }) {
         head: [['Attribute', 'Details']],
         body: [
           ['Category', product.category?.name || 'Uncategorized'],
-          ['Price', `Rs. ${product.price?.toLocaleString('en-IN')}`],
+          ...(!hidePrice ? [
+            ['Price', `Rs. ${product.price?.toLocaleString('en-IN')}`],
+            ['Cost Price', `Rs. ${product.costPrice?.toLocaleString('en-IN')}`]
+          ] : []),
           ['Stock Level', `${product.quantity} ${product.unit}`],
+          ['Pieces/Box', product.pieces_per_box || 1],
+          ['Loose Pieces', product.ava_pieces || 0],
+          ['Weight/Box', `${product.weight_of_box || 0} KG`],
+          ['Dimensions', product.dimensions || 'N/A'],
           ['Stock Status', product.stockStatus?.toUpperCase()],
-          ['Minimum Alert Level', `${product.minStockLevel} ${product.unit}`],
+          ['Damaged Stock', product.damagedStock || 0],
+          ['Sample Stock', product.sampleStock || 0],
           ['Supplier', product.supplier || 'N/A'],
-          ['Description', product.description || 'No description provided'],
           ['Created By', product.createdBy?.fullName || 'N/A'],
           ['Created Date', new Date(product.createdAt).toLocaleDateString('en-IN')],
         ],
@@ -134,35 +149,61 @@ export default function ProductDetailModal({ product, onClose }) {
             <div className="space-y-6">
               <section>
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Info className="w-4 h-4" /> Basic Information
+                  <Info className="w-4 h-4 text-primary-500" /> Basic Information
                 </h3>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                      <Tag className="w-4 h-4" /> <span className="text-sm font-medium">Category</span>
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
+                      <Tag className="w-4 h-4" /> <span className="text-sm font-bold uppercase tracking-tight">Category</span>
                     </div>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white bg-white dark:bg-gray-800 px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <span className="text-sm font-black text-primary-600 bg-primary-50 dark:bg-primary-900/20 px-3 py-1 rounded-lg border border-primary-100 dark:border-primary-900/30">
                       {product.category?.name || 'Uncategorized'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                      <DollarSign className="w-4 h-4" /> <span className="text-sm font-medium">Selling Price</span>
-                    </div>
-                    <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
-                      ₹{product.price?.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {product.costPrice && (
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50">
-                      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                        <History className="w-4 h-4" /> <span className="text-sm font-medium">Cost Price</span>
+                  {!hidePrice && (
+                    <>
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100/50 dark:border-emerald-900/20">
+                        <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                          <DollarSign className="w-4 h-4" /> <span className="text-sm font-bold uppercase tracking-tight">Selling Price</span>
+                        </div>
+                        <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                          ₹{product.price?.toLocaleString('en-IN')}
+                        </span>
                       </div>
-                      <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
-                        ₹{product.costPrice?.toLocaleString('en-IN')}
-                      </span>
-                    </div>
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
+                          <Scale className="w-4 h-4" /> <span className="text-sm font-bold uppercase tracking-tight">Cost Price</span>
+                        </div>
+                        <span className="text-sm font-black text-gray-900 dark:text-white">
+                          ₹{product.costPrice?.toLocaleString('en-IN') || '0'}
+                        </span>
+                      </div>
+                    </>
                   )}
+                </div>
+              </section>
+              
+              <section>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Layers className="w-4 h-4" /> Packaging & Dimensions
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase mb-1">Pieces / Box</p>
+                    <p className="text-lg font-black text-blue-900 dark:text-blue-100">{product.pieces_per_box || 1}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase mb-1">Weight / Box</p>
+                    <p className="text-lg font-black text-amber-900 dark:text-amber-100">{product.weight_of_box || 0} <span className="text-xs font-bold">KG</span></p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/20">
+                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mb-1">Dimensions</p>
+                    <p className="text-sm font-black text-indigo-900 dark:text-indigo-100">{product.dimensions || 'N/A'}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-900/20">
+                    <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mb-1">Loose Pieces</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-slate-100">{product.ava_pieces || 0} PCS</p>
+                  </div>
                 </div>
               </section>
 
@@ -234,6 +275,38 @@ export default function ProductDetailModal({ product, onClose }) {
                        />
                     </div>
                     <p className="text-[10px] text-gray-400 mt-2 italic">Low stock alert triggers at {product.minStockLevel} {product.unit}</p>
+                  </div>
+                </div>
+              </section>
+              
+              <section className="p-5 rounded-3xl bg-red-50/30 dark:bg-red-900/10 border border-red-100/50 dark:border-red-900/20">
+                <h3 className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4" /> Stock Quality Breakdown
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Damaged</p>
+                    <p className={`text-sm font-bold ${product.damagedStock > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {product.damagedStock || 0} {product.unit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Sample</p>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                      {product.sampleStock || 0} {product.unit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Exchanged</p>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                      {product.exchangedStock || 0} {product.unit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Wrong Item</p>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                      {product.wrongProductStock || 0} {product.unit}
+                    </p>
                   </div>
                 </div>
               </section>

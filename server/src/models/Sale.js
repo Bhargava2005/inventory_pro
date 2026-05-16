@@ -40,6 +40,19 @@ const saleItemSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  pieces: {
+    type: Number,
+    default: 0,
+    min: 0,
+  }, // separate loose pieces sold for this item
+  pricePerPiece: {
+    type: Number,
+    default: 0,
+  }, // price_per_box / pieces_per_box
+  weight: {
+    type: Number,
+    default: 0,
+  }, // total weight for this row (boxes + pieces)
   isDamaged: {
     type: Boolean,
     default: false,
@@ -109,6 +122,15 @@ const saleSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    // Transporter / delivery details
+    transporter: {
+      name: { type: String, trim: true, default: '' },
+      mobile: { type: String, trim: true, default: '' },
+      vehicleType: { type: String, trim: true, default: '' },
+      vehicleNumber: { type: String, trim: true, default: '' },
+    },
+    // Total weight of this order (computed at sale time)
+    totalWeight: { type: Number, default: 0 },
   },
   {
     timestamps: true,

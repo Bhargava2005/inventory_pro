@@ -8,6 +8,8 @@ import useSaleStore from '../store/saleStore.js';
 import useBranchStore from '../store/branchStore.js';
 import useAuthStore from '../store/authStore.js';
 import useProductStore from '../store/productStore.js';
+import useAnalyticsStore from '../store/analyticsStore.js';
+import useSettingsStore from '../store/settingsStore.js';
 import AnalysisTable from '../components/analytics/AnalysisTable.jsx';
 import { reportAPI } from '../api/reports.js';
 import toast from 'react-hot-toast';
@@ -42,37 +44,48 @@ function getPresetDates(key) {
 export default function AnalyticsPage() {
   const { analysisData, fetchAnalysis, isLoading } = useSaleStore();
   const { branches, fetchBranches } = useBranchStore();
-  const { categories, fetchCategories } = useProductStore();
+  const { categories, fetchCategories, brands, fetchBrands } = useProductStore();
   const { user } = useAuthStore();
+  const {
+    activePreset, setActivePreset,
+    activeResultTab, setActiveResultTab,
+    dateRange, setDateRange,
+    selectedBranch, setSelectedBranch,
+    selectedCategory, setSelectedCategory,
+    selectedBrand, setSelectedBrand,
+    searchTerm, setSearchTerm,
+    selectedProducts, setSelectedProducts,
+    groupBy, setGroupBy,
+    transactionType, setTransactionType,
+    sortBy, setSortBy,
+    page, setPage
+  } = useAnalyticsStore();
+  const { settings } = useSettingsStore();
   
-  const [activePreset, setActivePreset] = useState('month');
-  const [activeResultTab, setActiveResultTab] = useState('product');
-  const [dateRange, setDateRange] = useState({
-    startDate: getPresetDates('month').startDate,
-    endDate: getPresetDates('month').endDate,
-  });
-  const [selectedBranch, setSelectedBranch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [groupBy, setGroupBy] = useState('day');
-  const [page, setPage] = useState(1);
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+  
   const [isExporting, setIsExporting] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(null); 
 
   useEffect(() => {
     if (user?.role === 'admin') fetchBranches();
     fetchCategories();
-  }, []);
+    fetchBrands(selectedBranch ? { branchId: selectedBranch } : {});
+  }, [selectedBranch]);
 
   const fetchData = (currentSelected = selectedProducts, currentPage = page) => {
     fetchAnalysis({ 
       ...dateRange, 
       branchId: selectedBranch, 
       categoryId: selectedCategory,
+      brand: selectedBrand,
       search: searchTerm,
       productIds: currentSelected,
       groupBy: groupBy,
+      transactionType: transactionType,
+      sortByField: sortBy.field,
+      sortByDir: sortBy.direction,
       page: currentPage,
       limit: 10,
       activeTab: activeResultTab
@@ -85,7 +98,7 @@ export default function AnalyticsPage() {
       fetchData(selectedProducts, 1);
     }, 400); 
     return () => clearTimeout(timer);
-  }, [dateRange, selectedBranch, selectedCategory, searchTerm]);
+  }, [dateRange, selectedBranch, selectedCategory, selectedBrand, searchTerm, transactionType]);
 
   const isFirstMount = useRef(true);
   useEffect(() => {
@@ -94,7 +107,7 @@ export default function AnalyticsPage() {
       fetchData(selectedProducts, page);
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedProducts, groupBy, page, activeResultTab]);
+  }, [selectedProducts, groupBy, page, activeResultTab, sortBy]);
 
   const applyPreset = (key) => {
     setActivePreset(key);
@@ -129,8 +142,8 @@ export default function AnalyticsPage() {
       return `product_${pName.replace(/\s+/g, '_')}_${date}.${ext}`;
     } else if (selectedProducts.length > 1) {
       return `multi_product_audit_${date}.${ext}`;
-    } else if (searchTerm) {
-      return `search_${searchTerm.replace(/\s+/g, '_')}_${date}.${ext}`;
+    } else if (selectedBrand) {
+      return `brand_${selectedBrand.replace(/\s+/g, '_')}_${date}.${ext}`;
     }
     return `report_${date}_${time}.${ext}`;
   };
@@ -151,9 +164,13 @@ export default function AnalyticsPage() {
         ...dateRange, 
         branchId: selectedBranch, 
         categoryId: selectedCategory,
+        brand: selectedBrand,
         search: searchTerm,
         productIds: selectedProducts,
-        groupBy: groupBy
+        groupBy: groupBy,
+        transactionType: transactionType,
+        sortByField: sortBy.field,
+        sortByDir: sortBy.direction
       };
       const response = await reportAPI.getAnalysisExport(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -186,6 +203,7 @@ export default function AnalyticsPage() {
 
     const branchName = branches.find(b => b._id === selectedBranch)?.name || 'All Branches';
     const categoryName = categories.find(c => c._id === selectedCategory)?.name || 'All Categories';
+    const brandName = selectedBrand || 'All Brands';
     const presetLabel = DATE_PRESETS.find(p => p.key === activePreset)?.label || 'Custom Range';
     const genTime = new Date().toLocaleString('en-IN');
     const groupLabel = groupBy === 'day' ? 'Daily' : groupBy === 'week' ? 'Weekly' : 'Monthly';
@@ -203,8 +221,9 @@ export default function AnalyticsPage() {
       doc.text(`Filter: ${presetLabel} (${groupLabel})`, 15, 30);
       doc.text(`Period: ${dateRange.startDate} to ${dateRange.endDate}`, 15, 36);
       
-      doc.text(`Branch: ${branchName}`, 120, 30);
-      doc.text(`Category: ${categoryName}`, 120, 36);
+      doc.text(`Branch: ${branchName}`, 120, 25);
+      doc.text(`Category: ${categoryName}`, 120, 31);
+      doc.text(`Brand: ${brandName}`, 120, 37);
       
       doc.setFontSize(8);
       doc.text(`Generated: ${genTime}`, 15, 45);
@@ -216,9 +235,9 @@ export default function AnalyticsPage() {
       doc.text(`Summary by ${groupLabel}`, 15, y);
       autoTable(doc, {
         startY: y + 5,
-        head: [[groupLabel === 'Daily' ? 'Date' : 'Period', 'Sold', 'Revenue', 'Samples', 'Damages', 'Exchanges', 'Wrong']],
+        head: [[groupLabel === 'Daily' ? 'Date' : 'Period', 'Sold', ...(!hidePrice ? ['Revenue'] : []), 'Samples', 'Damages', 'Exchanges', 'Wrong']],
         body: timeAnalysis.map(d => [
-          d._id, d.salesCount, `Rs. ${d.totalSales.toLocaleString('en-IN')}`,
+          d._id, d.salesCount, ...(!hidePrice ? [`Rs. ${d.totalSales.toLocaleString('en-IN')}`] : []),
           d.sampleCount, d.damagedCount, d.exchangeCount, d.wrongProductCount
         ]),
         headStyles: { fillColor: [99, 102, 241] },
@@ -234,10 +253,10 @@ export default function AnalyticsPage() {
       doc.text('Product Performance', 15, y);
       autoTable(doc, {
         startY: y + 5,
-        head: [['SKU', 'Brand', 'Product Name', 'Sold', 'Revenue', 'Samples', 'Damages', 'Exchanges', 'Wrong']],
+        head: [['SKU', 'Brand', 'Product Name', 'Sold', ...(!hidePrice ? ['Revenue'] : []), 'Samples', 'Damages', 'Exchanges', 'Wrong']],
         body: filteredProducts.map(d => [
-          d.sku || 'N/A', d.brand || '—', d.name || d._id, d.salesCount, `Rs. ${d.totalSales.toLocaleString('en-IN')}`,
-          d.sampleCount, d.damagedCount, d.exchangeCount, d.wrongProductCount
+          d.sku || 'N/A', d.brand || '—', d.name || d._id, d.salesCount, ...(!hidePrice ? [`Rs. ${d.totalSales.toLocaleString('en-IN')}`] : []),
+          d.sampleCount, d.damagedStock || d.damagedCount || 0, d.exchangedStock || d.exchangeCount || 0, d.wrongProductStock || d.wrongProductCount || 0
         ]),
         headStyles: { fillColor: [79, 70, 229] },
         alternateRowStyles: { fillColor: [249, 250, 251] },
@@ -267,43 +286,89 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Package className="w-7 h-7 text-primary-600" />
-            {user?.role === 'staff' ? 'My Sales Performance' : 'Sales Analytics'}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {user?.role === 'staff' ? 'View and track your personal sales achievements' : 'Analyze trends and audit product integrity'}
-          </p>
+      <div className="flex flex-col gap-4">
+        {/* Row 1: Title and Export Buttons (Desktop) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Package className="w-7 h-7 text-primary-600" />
+              {user?.role === 'staff' ? 'My Sales Performance' : 'Sales Analytics'}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {user?.role === 'staff' ? 'View and track your personal sales achievements' : 'Analyze trends and audit product integrity'}
+            </p>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2">
+            <button onClick={() => handleExportClick('excel')} disabled={isExporting}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm disabled:opacity-50">
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+              Excel
+            </button>
+            <button onClick={() => handleExportClick('pdf')}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition shadow-sm">
+              <FileText className="w-4 h-4" />
+              PDF
+            </button>
+          </div>
         </div>
 
+        {/* Row 2: Filters and Export Buttons (Mobile) */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[150px]">
             <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <select 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-transparent border-none text-sm focus:ring-0 p-0 dark:text-white w-full outline-none"
+              className="bg-transparent border-none text-sm focus:ring-0 p-0 dark:text-white w-full outline-none cursor-pointer"
             >
-              <option value="">All Categories</option>
-              {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+              <option value="" className="dark:bg-gray-900">All Categories</option>
+              {categories.map(c => <option key={c._id} value={c._id} className="dark:bg-gray-900">{c.name}</option>)}
             </select>
           </div>
 
-          {user?.role !== 'staff' && branches.length > 1 && (
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[150px]">
+            <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <select 
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              className="bg-transparent border-none text-sm focus:ring-0 p-0 dark:text-white w-full outline-none cursor-pointer"
+            >
+              <option value="" className="dark:bg-gray-900">All Brands</option>
+              {brands.map(b => <option key={b} value={b} className="dark:bg-gray-900">{b}</option>)}
+            </select>
+          </div>
+
+          {user?.role === 'admin' && branches.length > 1 && (
             <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 transition-all">
               <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <select 
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
-                className="select bg-transparent border-none text-xs font-bold focus:ring-0 p-0 dark:text-white w-full outline-none pr-8"
-              >
-                <option value="">All Branches</option>
-                {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
-              </select>
+              className="select bg-transparent border-none text-xs font-bold focus:ring-0 p-0 dark:text-white w-full outline-none pr-8 cursor-pointer"
+            >
+              <option value="" className="dark:bg-gray-900">All Branches</option>
+              {branches.map(b => <option key={b._id} value={b._id} className="dark:bg-gray-900">{b.name}</option>)}
+            </select>
             </div>
           )}
+
+          {/* Transaction Pool Filter */}
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[150px]">
+            <RefreshCw className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <select 
+              value={transactionType}
+              onChange={(e) => setTransactionType(e.target.value)}
+              className="bg-transparent border-none text-sm focus:ring-0 p-0 dark:text-white w-full outline-none cursor-pointer font-bold"
+            >
+              <option value="all">All Transactions</option>
+              <option value="sale">Regular Sales</option>
+              <option value="damaged">Damaged Stock</option>
+              <option value="exchange">Exchange Items</option>
+              <option value="wrong">Wrong Deliveries</option>
+              <option value="sample">Samples Given</option>
+            </select>
+          </div>
 
           <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5">
             <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -314,14 +379,15 @@ export default function AnalyticsPage() {
               value={dateRange.endDate} onChange={(e) => { setDateRange(p => ({ ...p, endDate: e.target.value })); setActivePreset('custom'); }} />
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto">
+          {/* Export Buttons (Mobile) */}
+          <div className="flex md:hidden gap-2 w-full">
             <button onClick={() => handleExportClick('excel')} disabled={isExporting}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm disabled:opacity-50">
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm disabled:opacity-50">
               {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
               Excel
             </button>
             <button onClick={() => handleExportClick('pdf')}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition shadow-sm">
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition shadow-sm">
               <FileText className="w-4 h-4" />
               PDF
             </button>
@@ -391,6 +457,8 @@ export default function AnalyticsPage() {
           }}
           onPageChange={setPage}
           isUpdating={isLoading}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
         />
       </div>
 

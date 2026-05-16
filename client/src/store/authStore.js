@@ -59,6 +59,32 @@ const useAuthStore = create(
         set({ user: null, token: null, isAuthenticated: false });
       },
 
+      // Update Profile
+      updateProfile: async (profileData) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await authAPI.updateProfile(profileData);
+          set({ user: data.user, isLoading: false });
+          return { success: true, message: data.message };
+        } catch (error) {
+          set({ isLoading: false });
+          return { success: false, message: error.message };
+        }
+      },
+
+      // Change Password
+      changePassword: async (passwordData) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await authAPI.changePassword(passwordData);
+          set({ isLoading: false });
+          return { success: true, message: data.message };
+        } catch (error) {
+          set({ isLoading: false });
+          return { success: false, message: error.message };
+        }
+      },
+
       // Refresh user data
       refreshUser: async () => {
         try {

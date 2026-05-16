@@ -12,6 +12,7 @@ export const productAPI = {
 
   // Categories
   getCategories: () => api.get('/categories'),
+  getBrands: (params) => api.get('/products/brands', { params }),
   createCategory: (data) => api.post('/categories', data),
   updateCategory: (id, data) => api.put(`/categories/${id}`, data),
   deleteCategory: (id) => api.delete(`/categories/${id}`),

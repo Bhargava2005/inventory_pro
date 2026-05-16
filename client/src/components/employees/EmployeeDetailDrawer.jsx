@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { X, User, Clock, Timer, UserMinus, TrendingUp, AlertTriangle, 
   RefreshCw, Package, ShieldAlert, Download, ChevronLeft, ChevronRight,
-  BarChart2, Calendar, Activity } from 'lucide-react';
+  BarChart2, Calendar, Activity, ChevronDown } from 'lucide-react';
 import { employeeAPI } from '../../api/employee';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -65,6 +65,7 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
   const [salesPage, setSalesPage] = useState(1);
   const [attPage, setAttPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [isKpiExpanded, setIsKpiExpanded] = useState(false);
 
   const getDateRange = useCallback(() => {
     if (activePreset === 'custom') return customDates;
@@ -363,7 +364,16 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
           </div>
         ) : kpi ? (
           <>
-            <div className="px-6 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0 border-b border-gray-100 dark:border-gray-800">
+            {/* KPI Expand Toggle (Mobile only) */}
+            <button 
+              onClick={() => setIsKpiExpanded(!isKpiExpanded)}
+              className="md:hidden w-full py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center justify-center gap-2 text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em]"
+            >
+              {isKpiExpanded ? 'Hide Summary' : 'Show Performance Summary'}
+              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isKpiExpanded ? 'rotate-180' : ''}`} />
+            </button>
+
+            <div className={`${isKpiExpanded ? 'grid' : 'hidden'} md:grid px-6 py-4 grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all`}>
               <KpiTile label="Items Sold" value={kpi.totalItems} icon={BarChart2}
                 color="bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300" />
               <KpiTile label="Revenue" value={`₹${(kpi.totalRevenue||0).toLocaleString('en-IN')}`} icon={TrendingUp}

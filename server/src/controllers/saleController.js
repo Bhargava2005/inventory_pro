@@ -19,7 +19,7 @@ const getStatusString = (item) => {
 // @access  Private
 export const createSale = async (req, res, next) => {
   try {
-    const { items, customer, paymentMethod, tax = 0, discount = 0 } = req.body;
+    const { items, customer, paymentMethod, tax = 0, discount = 0, transporter = {} } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in sale' });
@@ -30,6 +30,7 @@ export const createSale = async (req, res, next) => {
     const prefix = settings?.sales?.invoicePrefix || 'INV-';
 
     let totalAmount = 0;
+    let totalWeight = 0;
     const processedItems = [];
 
     // 1. Validate items and update stock
@@ -40,27 +41,64 @@ export const createSale = async (req, res, next) => {
         throw new Error(`Product ${item.name || item.product} not found`);
       }
 
-      if (product.quantity < item.quantity) {
-        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
+      const boxes = parseInt(item.quantity) || 0;
+      const pieces = parseInt(item.pieces) || 0;
+      const piecesPerBox = product.pieces_per_box || 1;
+      const weightPerBox = product.weight_of_box || 0;
+
+      // Validate box stock
+      if (product.quantity < boxes) {
+        throw new Error(`Insufficient box stock for ${product.name}. Available: ${product.quantity} boxes`);
       }
 
-      // Decrement stock
-      product.quantity -= item.quantity;
+      // Validate piece stock
+      if (pieces > 0 && product.ava_pieces < pieces) {
+        throw new Error(`Insufficient loose pieces for ${product.name}. Available: ${product.ava_pieces} pieces`);
+      }
+
+      // Decrement box stock
+      product.quantity -= boxes;
+
+      // Decrement loose pieces
+      if (pieces > 0) {
+        product.ava_pieces -= pieces;
+        // If ava_pieces goes negative (edge-case), open a new box and distribute
+        if (product.ava_pieces < 0) {
+          if (product.quantity < 1) {
+            throw new Error(`Cannot open new box for ${product.name} — no more boxes in stock`);
+          }
+          product.quantity -= 1;
+          product.ava_pieces += piecesPerBox; // fill from newly opened box
+        }
+      }
+
       await product.save();
 
+      // Calculate weight contribution
+      const pieceWeight = weightPerBox / piecesPerBox;
+      const itemWeight = (boxes * weightPerBox) + (pieces * pieceWeight);
+      totalWeight += itemWeight;
+
+      // Pricing: pricePerPiece = box_price / pieces_per_box
+      const pricePerPiece = product.price / piecesPerBox;
+
       // Calculate subtotal - Damaged and Wrong Products are free (reporting only)
-      // Normal sales and Samples are paid by the customer
       const isFree = item.isDamaged || item.isWrongProduct;
-      const itemSubtotal = isFree ? 0 : (item.quantity * item.price);
+      const boxSubtotal = isFree ? 0 : (boxes * item.price);
+      const pieceSubtotal = isFree ? 0 : (pieces * pricePerPiece);
+      const itemSubtotal = boxSubtotal + pieceSubtotal;
       totalAmount += itemSubtotal;
       
       processedItems.push({
         product: product._id,
         name: product.name,
         brand: product.brand,
-        quantity: item.quantity,
+        quantity: boxes,
+        pieces,
+        pricePerPiece: parseFloat(pricePerPiece.toFixed(2)),
+        weight: parseFloat(itemWeight.toFixed(3)),
         price: item.price,
-        subtotal: itemSubtotal,
+        subtotal: parseFloat(itemSubtotal.toFixed(2)),
         isDamaged: !!item.isDamaged,
         isExchange: false, // Exchange happens after sale, removed from POS
         isSample: !!item.isSample,
@@ -89,11 +127,18 @@ export const createSale = async (req, res, next) => {
     const sale = await Sale.create({
       invoiceNumber,
       items: processedItems,
-      totalAmount: finalTotal,
+      totalAmount: parseFloat(finalTotal.toFixed(2)),
       tax: safeTax,
       discount: safeDiscount,
       paymentMethod,
       customer,
+      transporter: {
+        name: transporter.name || '',
+        mobile: transporter.mobile || '',
+        vehicleType: transporter.vehicleType || '',
+        vehicleNumber: transporter.vehicleNumber || '',
+      },
+      totalWeight: parseFloat(totalWeight.toFixed(3)),
       storeId: req.user.storeId,
       branchId: req.user.role === 'admin' ? req.body.branchId || null : req.user.branchId,
       soldBy: req.user.id,
@@ -464,7 +509,9 @@ export const updateSaleItem = async (req, res, next) => {
     // Recalculate item subtotal
     // Damaged and Wrong Products are free. Normal and Sample are paid.
     const isFree = item.isDamaged || item.isWrongProduct;
-    item.subtotal = isFree ? 0 : (item.quantity * item.price);
+    const boxSubtotal = isFree ? 0 : (item.quantity * item.price);
+    const pieceSubtotal = isFree ? 0 : (item.pieces * (item.pricePerPiece || 0));
+    item.subtotal = parseFloat((boxSubtotal + pieceSubtotal).toFixed(2));
 
     // Recalculate sale totalAmount based on new subtotals
     const itemsTotal = sale.items.reduce((acc, it) => acc + it.subtotal, 0);

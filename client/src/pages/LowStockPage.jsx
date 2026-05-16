@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Package, Loader2, PlusCircle, X, TrendingDown } from 'lucide-react';
+import { AlertTriangle, Package, Loader2, PlusCircle, X, TrendingDown, Store } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useProductStore from '../store/productStore.js';
+import useBranchStore from '../store/branchStore.js';
+import useAuthStore from '../store/authStore.js';
 
 function StockAdjustModal({ product, onClose }) {
   const [value, setValue] = useState('');
@@ -149,9 +151,14 @@ function ProductCards({ items, onRestock, borderColor, quantityColor }) {
 
 export default function LowStockPage({ hideHeader }) {
   const { products, isLoading, fetchProducts, setFilters, filters } = useProductStore();
+  const { branches, fetchBranches } = useBranchStore();
+  const { user } = useAuthStore();
   const [stockProduct, setStockProduct] = useState(null);
 
+  const isAdmin = user?.role === 'admin';
+
   useEffect(() => { 
+    if (isAdmin) fetchBranches();
     setFilters({ status: 'low', search: '', category: 'all' }); 
     return () => setFilters({ status: '' });
   }, []);
@@ -164,14 +171,30 @@ export default function LowStockPage({ hideHeader }) {
     <div>
       {/* Page header */}
       {!hideHeader && (
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Low Stock Alerts</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{products.length} product{products.length !== 1 ? 's' : ''} need attention</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Low Stock Alerts</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{products.length} product{products.length !== 1 ? 's' : ''} need attention</p>
-          </div>
+
+          {isAdmin && (
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+              <Store className="w-4 h-4 text-gray-400" />
+              <select 
+                value={filters.branchId || ''} 
+                onChange={(e) => setFilters({ branchId: e.target.value })}
+                className="bg-transparent border-none text-sm font-bold focus:ring-0 p-0 pr-8 outline-none dark:text-white cursor-pointer"
+              >
+                <option value="">All Branches</option>
+                {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
       )}
 

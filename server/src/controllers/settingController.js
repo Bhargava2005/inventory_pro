@@ -46,11 +46,11 @@ export const updateSettings = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'User is not assigned to a store' });
     }
 
-    const { business, sales, inventory, notifications } = req.body;
+    const { business, sales, inventory, notifications, privacy } = req.body;
 
     let settings = await Setting.findOneAndUpdate(
       { storeId },
-      { business, sales, inventory, notifications },
+      { business, sales, inventory, notifications, privacy },
       { new: true, runValidators: true, upsert: true }
     );
 

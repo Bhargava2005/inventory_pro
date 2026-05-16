@@ -13,6 +13,8 @@ import ImportMappingModal from '../components/products/ImportMappingModal.jsx';
 import CategoriesPage from './CategoriesPage.jsx';
 import LowStockPage from './LowStockPage.jsx';
 import ProductDetailModal from '../components/products/ProductDetailModal.jsx';
+import useBranchStore from '../store/branchStore.js';
+import useSettingsStore from '../store/settingsStore.js';
 
 const statusColors = { ok: 'badge-green', low: 'badge-yellow', out: 'badge-red' };
 const statusLabels = { ok: 'In Stock', low: 'Low Stock', out: 'Out of Stock' };
@@ -106,9 +108,13 @@ export default function ProductsPage() {
   const {
     products, total, totalPages, page, isLoading, filters,
     fetchProducts, fetchCategories, setFilters, setPage, categories,
-    stats, fetchStats,
+    stats, fetchStats, brands, fetchBrands
   } = useProductStore();
+  const { branches, fetchBranches } = useBranchStore();
   const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
 
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
@@ -141,11 +147,12 @@ export default function ProductsPage() {
     }
   };
 
-  const handleConfirmMapping = async (mapping) => {
+  const handleConfirmMapping = async (mapping, branchId) => {
     if (!importFile) return;
     const formData = new FormData();
     formData.append('file', importFile);
     formData.append('mapping', JSON.stringify(mapping));
+    if (branchId) formData.append('branchId', branchId);
     setIsImporting(true);
     try {
       const { data } = await api.post('/products/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -161,7 +168,7 @@ export default function ProductsPage() {
   const canEdit = ['admin', 'manager'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
 
-  useEffect(() => { fetchCategories(); fetchStats(); }, []);
+  useEffect(() => { fetchCategories(); fetchBrands(); fetchStats(); fetchBranches(); }, []);
   useEffect(() => { fetchProducts(); fetchStats(); }, [filters, page]);
   
   // Clear the low-stock status filter when switching back to the "All Products" tab
@@ -180,11 +187,18 @@ export default function ProductsPage() {
   const handleExportInventory = async () => {
     try {
       toast.loading('Generating report...', { id: 'export' });
-      const response = await api.get('/reports/inventory/export', { responseType: 'blob' });
+      // Include branchId in the export request
+      const branchParam = filters.branchId ? `?branchId=${filters.branchId}` : '';
+      const response = await api.get(`/reports/inventory/export${branchParam}`, { responseType: 'blob' });
+      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `inventory_report_${new Date().toLocaleDateString()}.xlsx`);
+      const fileName = filters.branchId 
+        ? `inventory_report_branch_${filters.branchId}_${new Date().toLocaleDateString()}.xlsx`
+        : `inventory_report_all_${new Date().toLocaleDateString()}.xlsx`;
+        
+      link.setAttribute('download', fileName);
       document.body.appendChild(link); link.click(); link.remove();
       toast.success('Report downloaded!', { id: 'export' });
     } catch {
@@ -349,6 +363,16 @@ export default function ProductsPage() {
               <option value="all">All Categories</option>
               {categories.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
+            <select value={filters.brand || ''} onChange={(e) => setFilters({ brand: e.target.value })} className="input flex-1">
+              <option value="">All Brands</option>
+              {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            {isAdmin && (
+              <select value={filters.branchId} onChange={(e) => setFilters({ branchId: e.target.value })} className="input flex-1">
+                <option value="">All Branches</option>
+                {branches.map((b) => <option key={b._id} value={b._id}>{b.name} ({b.code})</option>)}
+              </select>
+            )}
             <select value={filters.sort} onChange={(e) => setFilters({ sort: e.target.value })} className="input flex-1">
               <option value="-createdAt">Newest First</option>
               <option value="createdAt">Oldest First</option>
@@ -403,8 +427,12 @@ export default function ProductsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div>
-                      <p className="text-xs text-gray-400">Price</p>
-                      <p className="font-bold text-gray-900 dark:text-white">₹{p.price.toLocaleString('en-IN')}</p>
+                      {!hidePrice && (
+                        <>
+                          <p className="text-xs text-gray-400">Price</p>
+                          <p className="font-bold text-gray-900 dark:text-white">₹{p.price.toLocaleString('en-IN')}</p>
+                        </>
+                      )}
                     </div>
                     <div>
                       <p className="text-xs text-gray-400">Stock</p>
@@ -445,7 +473,7 @@ export default function ProductsPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">SKU</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Brand</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
+                    {!hidePrice && <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>}
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stock</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
@@ -471,7 +499,7 @@ export default function ProductsPage() {
                       <td className="px-4 py-4">
                         {p.category ? <span className="badge badge-blue">{p.category.name}</span> : <span className="text-gray-400 text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">₹{p.price.toLocaleString('en-IN')}</td>
+                      {!hidePrice && <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">₹{p.price.toLocaleString('en-IN')}</td>}
                       <td className="px-4 py-3 text-right">
                         <p className="font-medium text-gray-900 dark:text-white">{p.quantity}</p>
                         <p className="text-[10px] text-gray-400 uppercase">{p.unit}</p>
@@ -548,6 +576,8 @@ export default function ProductsPage() {
       {importHeaders && (
         <ImportMappingModal
           headers={importHeaders}
+          branches={branches}
+          user={user}
           isSubmitting={isImporting}
           onClose={() => { setImportHeaders(null); setImportFile(null); }}
           onConfirm={handleConfirmMapping}

@@ -4,7 +4,7 @@ import {
   Package, LayoutDashboard, Tags, AlertTriangle,
   LogOut, Menu, X, Sun, Moon, User, ChevronRight, Store,
   ShoppingCart, Receipt, BarChart3, Settings, ShieldCheck, Bell, Clock,
-  Trash2, MessageSquare, Send
+  Trash2, MessageSquare, Send, UserSearch
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
@@ -12,15 +12,18 @@ import useAuthStore from '../../store/authStore.js';
 import useThemeStore from '../../store/themeStore.js';
 import useNotificationStore from '../../store/notificationStore.js';
 
+// mobileNav: false = hidden from mobile bottom nav (accessible via contextual buttons)
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', shortLabel: 'Home', roles: ['admin', 'manager'] },
-  { to: '/pos', icon: ShoppingCart, label: 'New Sale', shortLabel: 'Sale' },
-  { to: '/sales', icon: Receipt, label: 'Sales History', shortLabel: 'Sales', roles: ['admin', 'manager', 'staff'] },
-  { to: '/users', icon: ShieldCheck, label: 'Staff Management', shortLabel: 'Staff', roles: ['admin', 'manager'] },
-  { to: '/analytics', icon: BarChart3, label: 'Sales Analytics', shortLabel: 'Analytics', roles: ['admin', 'manager', 'staff'] },
-  { to: '/products', icon: Package, label: 'Inventory Management', shortLabel: 'Inventory', roles: ['admin', 'manager'] },
-  { to: '/employee-behavior', icon: BarChart3, label: 'Employee Behavior', shortLabel: 'Behavior', roles: ['admin', 'manager', 'staff'] },
-  { to: '/branches', icon: Store, label: 'Branches', shortLabel: 'Branches', roles: ['admin'] },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', shortLabel: 'Home', roles: ['admin', 'manager'], mobileNav: true },
+  { to: '/staff-home', icon: LayoutDashboard, label: 'Home', shortLabel: 'Home', roles: ['staff'], mobileNav: true },
+  { to: '/pos', icon: ShoppingCart, label: 'New Sale', shortLabel: 'Sale', mobileNav: true },
+  { to: '/users', icon: ShieldCheck, label: 'Staff Management', shortLabel: 'Staff', roles: ['admin', 'manager'], mobileNav: true },
+  { to: '/analytics', icon: BarChart3, label: 'Sales Analytics', shortLabel: 'Analytics', roles: ['admin', 'manager', 'staff'], mobileNav: true },
+  { to: '/products', icon: Package, label: 'Inventory Management', shortLabel: 'Inventory', roles: ['admin', 'manager'], mobileNav: true },
+  // Desktop-sidebar-only items (accessible via contextual nav on mobile)
+  { to: '/sales', icon: Receipt, label: 'Sales History', shortLabel: 'Sales', roles: ['admin', 'manager', 'staff'], mobileNav: false },
+  { to: '/employee-behavior', icon: UserSearch, label: 'Employee Behavior', shortLabel: 'Behavior', roles: ['admin', 'manager', 'staff'], mobileNav: true },
+  { to: '/branches', icon: Store, label: 'Branches', shortLabel: 'Branches', roles: ['admin'], mobileNav: false },
 ];
 
 const roleBadge = {
@@ -326,8 +329,7 @@ export default function AppLayout({ children }) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 safe-area-pb shadow-[0_-4px_20px_rgba(0,0,0,0.08)] min-h-[4.5rem] flex items-center">
         <div className="flex items-stretch justify-around px-1 pt-1 pb-1 w-full">
           {navItems
-            .filter(item => !item.roles || item.roles.includes(user?.role))
-            .slice(0, 5)
+            .filter(item => (!item.roles || item.roles.includes(user?.role)) && item.mobileNav !== false)
             .map(({ to, icon: Icon, label, shortLabel }) => (
             <NavLink
               key={to}

@@ -1,62 +1,143 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, ShoppingCart, Trash2, Plus, Minus, 
   CreditCard, Banknote, User, Phone, X, Loader2, AlertCircle, Scan,
-  Package, Filter, RefreshCw
+  Package, Filter, RefreshCw, History, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import useProductStore from '../store/productStore.js';
 import useSaleStore from '../store/saleStore.js';
 import useSettingsStore from '../store/settingsStore.js';
+import useCartStore from '../store/cartStore.js';
+import useAuthStore from '../store/authStore.js';
 import { generateInvoicePDF } from '../utils/pdfGenerator.js';
 import { fuzzyMatch } from '../utils/searchUtils.js';
 
 export default function NewSalePage() {
-  const { products, fetchProducts, isLoading } = useProductStore();
+  const { 
+    products, total, totalPages, page, isLoading, filters,
+    fetchProducts, fetchCategories, fetchBrands, setFilters, setPage, 
+    categories: storeCategories, brands
+  } = useProductStore();
   const { processSale, isSubmitting } = useSaleStore();
   const { settings, fetchSettings } = useSettingsStore();
+  const { user } = useAuthStore();
+  const { 
+    cart, setCart, removeFromCart, updateQty, setQty,
+    customer, setCustomer,
+    taxRate, setTaxRate,
+    discountRate, setDiscountRate,
+    paymentMethod, setPaymentMethod,
+    clearCart, toggleItemFlag
+  } = useCartStore();
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [cart, setCart] = useState([]);
-  const [customer, setCustomer] = useState({ name: '', phone: '', companyName: '', addressLine: '' });
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [localSearch, setLocalSearch] = useState(filters.search);
   const [showScanner, setShowScanner] = useState(false);
   const [activeTab, setActiveTab] = useState('products');
+  const navigate = useNavigate();
   
   // Modal States
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showAddConfirm, setShowAddConfirm] = useState(false);
   const [productToConfirm, setProductToConfirm] = useState(null);
   const [confirmQty, setConfirmQty] = useState(1);
+  const [confirmPieces, setConfirmPieces] = useState(0); // Loose pieces
   const [confirmPool, setConfirmPool] = useState('isSelling');
+  
+  // Transporter State
+  const { transporter, setTransporter } = useCartStore();
   
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedBrand, setSelectedBrand] = useState('all');
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  
+  // Tax & Discount Calculated Amounts
+  const [taxAmount, setTaxAmount] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
-  // Extract unique categories and brands dynamically
-  const { categories, brands } = useMemo(() => {
-    const cats = new Set();
-    const brnds = new Set();
-    products.forEach(p => {
-      if (p.category?.name) cats.add(p.category.name);
-      if (p.brand) brnds.add(p.brand);
-    });
-    return { categories: Array.from(cats).sort(), brands: Array.from(brnds).sort() };
-  }, [products]);
-
+  // Fetch categories and initial products
   useEffect(() => {
-    fetchProducts({ limit: 1000 });
-    if (!settings) fetchSettings();
+    fetchCategories();
+    fetchBrands();
+    fetchProducts({ limit: 16 });
+    if (!settings) {
+      fetchSettings();
+    } else if (cart.length === 0) {
+      setTaxRate(settings?.sales?.defaultTax || 0);
+    }
   }, []);
+
+  // Fetch whenever filters or page change
+  useEffect(() => {
+    fetchProducts({ limit: 16 });
+  }, [filters, page]);
+
+  // Debounced Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== filters.search) {
+        setFilters({ search: localSearch });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [localSearch]);
+
+  // Update default tax when settings are fetched (only if cart is new)
+  useEffect(() => {
+    if (settings?.sales?.defaultTax && cart.length === 0) {
+      setTaxRate(settings.sales.defaultTax);
+    }
+  }, [settings]);
+
+  const subtotal = cart.reduce((acc, item) => {
+    // Damaged and WrongProduct are free/reporting-only; Selling and Sample are charged
+    if (item.isDamaged || item.isWrongProduct) return acc;
+    const ppb = item.pieces_per_box || 1;
+    const pricePerPiece = item.pricePerPiece || (item.price / ppb);
+    return acc + (item.price * item.quantity) + (item.pieces * pricePerPiece);
+  }, 0);
+
+  const finalTotal = subtotal + taxAmount - discountAmount;
+
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
+
+  // Recalculate amounts when subtotal or rates change
+  useEffect(() => {
+    setTaxAmount((subtotal * taxRate) / 100);
+    setDiscountAmount((subtotal * discountRate) / 100);
+  }, [subtotal, taxRate, discountRate]);
+
+  const handleTaxRateChange = (rate) => {
+    const val = parseFloat(rate) || 0;
+    setTaxRate(val);
+  };
+
+  const handleTaxAmountChange = (amount) => {
+    const val = parseFloat(amount) || 0;
+    setTaxAmount(val);
+    setTaxRate(subtotal > 0 ? (val / subtotal) * 100 : 0);
+  };
+
+  const handleDiscountRateChange = (rate) => {
+    const val = parseFloat(rate) || 0;
+    setDiscountRate(val);
+  };
+
+  const handleDiscountAmountChange = (amount) => {
+    const val = parseFloat(amount) || 0;
+    setDiscountAmount(val);
+    setDiscountRate(subtotal > 0 ? (val / subtotal) * 100 : 0);
+  };
 
   useEffect(() => {
     if (showScanner) {
       const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
       scanner.render((decodedText) => {
+        // For barcode, we still need to look in the current batch or fetch specifically
+        // But for simplicity, we'll check current products first
         const product = products.find(p => p.sku === decodedText);
         if (product) {
           addToCart(product);
@@ -64,7 +145,7 @@ export default function NewSalePage() {
           setShowScanner(false);
           scanner.clear();
         } else {
-          toast.error("Product not found");
+          toast.error("Product not found in current view");
         }
       }, () => {});
 
@@ -72,32 +153,21 @@ export default function NewSalePage() {
     }
   }, [showScanner, products]);
 
-  const filteredProducts = useMemo(() => {
-    // Fuzzy matching for illiterate users or typos: 
-    // Uses subsequence matching and Levenshtein distance
-    const tokens = searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    
-    return products.filter(p => {
-      const matchesSearch = tokens.length === 0 || tokens.every(token =>
-        fuzzyMatch(p.name, token) ||
-        fuzzyMatch(p.sku, token) ||
-        fuzzyMatch(p.brand, token) ||
-        fuzzyMatch(p.supplier, token) ||
-        fuzzyMatch(p.category?.name, token)
-      );
-      const matchesCategory = selectedCategory === 'all' || p.category?.name === selectedCategory;
-      const matchesBrand = selectedBrand === 'all' || p.brand === selectedBrand;
-      const price = p.price || 0;
-      const matchesMinPrice = priceRange.min === '' || price >= Number(priceRange.min);
-      const matchesMaxPrice = priceRange.max === '' || price <= Number(priceRange.max);
-      return matchesSearch && matchesCategory && matchesBrand && matchesMinPrice && matchesMaxPrice;
-    });
-  }, [products, searchTerm, selectedCategory, selectedBrand, priceRange]);
+
 
   const addToCart = (product) => {
-    if (product.quantity <= 0) { toast.error('Product out of stock'); return; }
+    if (product.quantity <= 0 && product.ava_pieces <= 0) { 
+      toast.error('Product completely out of stock'); 
+      return; 
+    }
     setProductToConfirm(product);
-    setConfirmQty(1);
+    if (product.quantity > 0) {
+      setConfirmQty(1);
+      setConfirmPieces(0);
+    } else {
+      setConfirmQty(0);
+      setConfirmPieces(1);
+    }
     setConfirmPool('isSelling');
     setShowAddConfirm(true);
   };
@@ -105,37 +175,59 @@ export default function NewSalePage() {
   const handleConfirmAdd = () => {
     if (!productToConfirm) return;
     
+    const qty = parseInt(confirmQty) || 0;
+    const pces = parseInt(confirmPieces) || 0;
+
+    if (qty === 0 && pces === 0) {
+      toast.error('Please enter a quantity');
+      return;
+    }
+
     const existing = cart.find(item => item.product === productToConfirm._id);
+    
+    // Pieces overflow logic (moved to store, but handled here for immediate validation)
+    let finalQty = qty;
+    let finalPieces = pces;
+    const ppb = productToConfirm.pieces_per_box || 1;
+    
+    if (finalPieces >= ppb) {
+      finalQty += Math.floor(finalPieces / ppb);
+      finalPieces = finalPieces % ppb;
+    }
+
     if (existing) {
-      if (existing.quantity + confirmQty > productToConfirm.quantity) {
-        toast.error(`Insufficient stock. Only ${productToConfirm.quantity - existing.quantity} more available.`);
+      if (existing.quantity + finalQty > productToConfirm.quantity) {
+        toast.error(`Insufficient box stock.`);
         return;
       }
-      setCart(cart.map(item => item.product === productToConfirm._id ? { 
+      if (existing.pieces + finalPieces > productToConfirm.ava_pieces && productToConfirm.quantity <= existing.quantity + finalQty) {
+        toast.error(`Insufficient piece stock.`);
+        return;
+      }
+
+      setCart(prev => prev.map(item => item.product === productToConfirm._id ? { 
         ...item, 
-        quantity: item.quantity + confirmQty,
-        // Update pool if it was different? User said "selection of the four cart and quantity in confirmation window"
-        // If it's the same product but different pool, we might want to allow multiple entries for the same product?
-        // Current logic maps by product ID. If we want different pools for the same product, we'd need a unique key.
-        // For now, I'll stick to updating the existing one's pool and quantity as per current logic, 
-        // but the user might want multiple rows. Let's stick to updating for now to avoid breaking existing logic.
+        quantity: item.quantity + finalQty,
+        pieces: item.pieces + finalPieces,
         [confirmPool]: true,
-        // Ensure other pools are false
         isSelling: confirmPool === 'isSelling',
         isDamaged: confirmPool === 'isDamaged',
         isSample: confirmPool === 'isSample',
         isWrongProduct: confirmPool === 'isWrongProduct',
       } : item));
     } else {
-      setCart([...cart, { 
+      setCart(prev => [...prev, { 
         product: productToConfirm._id, 
         name: productToConfirm.name, 
         brand: productToConfirm.brand,
         price: productToConfirm.price, 
         image: productToConfirm.image,
         color: productToConfirm.color,
-        quantity: confirmQty, 
+        quantity: finalQty, 
+        pieces: finalPieces,
+        pieces_per_box: ppb,
         maxQty: productToConfirm.quantity,
+        maxPieces: productToConfirm.ava_pieces,
         isSelling: confirmPool === 'isSelling',
         isDamaged: confirmPool === 'isDamaged',
         isSample: confirmPool === 'isSample',
@@ -147,54 +239,21 @@ export default function NewSalePage() {
     setProductToConfirm(null);
   };
 
-  // Mutually exclusive flag toggle across all 4 states (selling/sample/damaged/wrongProduct)
-  const toggleItemFlag = (id, flag) => {
-    setCart(cart.map(item => {
-      if (item.product === id) {
-        return { 
-          ...item, 
-          isSelling: flag === 'isSelling',
-          isDamaged: flag === 'isDamaged',
-          isSample: flag === 'isSample',
-          isWrongProduct: flag === 'isWrongProduct',
-        };
-      }
-      return item;
-    }));
-  };
-
-  const updateQty = (id, delta) => {
-    setCart(cart.map(item => {
-      if (item.product === id) {
-        const newQty = Math.max(1, Math.min(item.maxQty, item.quantity + delta));
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  };
-
-  const removeFromCart = (id) => setCart(cart.filter(item => item.product !== id));
-
-  const subtotal = cart.reduce((acc, item) => {
-    // Damaged and WrongProduct are free/reporting-only; Selling and Sample are charged
-    if (item.isDamaged || item.isWrongProduct) return acc;
-    return acc + (item.price * item.quantity);
-  }, 0);
-
-  const defaultTaxRate = settings?.sales?.defaultTax || 0;
-  const taxAmount = (subtotal * defaultTaxRate) / 100;
-  const finalTotal = subtotal + taxAmount;
-
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    // Strip isSelling before sending — backend doesn't need it (it's the default state)
     const itemsForBackend = cart.map(({ isSelling, ...rest }) => rest);
-    const result = await processSale({ items: itemsForBackend, customer, paymentMethod, tax: taxAmount });
+    const result = await processSale({ 
+      items: itemsForBackend, 
+      customer, 
+      transporter,
+      paymentMethod, 
+      tax: taxAmount,
+      discount: discountAmount 
+    });
     if (result.success) {
       toast.success('Sale completed! Invoice: ' + result.data.invoiceNumber);
       generateInvoicePDF(result.data);
-      setCart([]);
-      setCustomer({ name: '', phone: '', companyName: '', addressLine: '' });
+      clearCart();
       setActiveTab('products');
       setShowCheckoutModal(false);
       fetchProducts();
@@ -203,7 +262,69 @@ export default function NewSalePage() {
     }
   };
 
-  // ─── Product Grid ─────────────────────────────────────────────────────────
+  const renderTaxDiscountFields = (isSidebar = false) => {
+    if (hideTax) return null;
+    return (
+      <div className={`grid grid-cols-1 ${isSidebar ? 'gap-6' : 'md:grid-cols-2 gap-10'} p-4 ${isSidebar ? 'bg-transparent p-0' : 'bg-gray-50 dark:bg-gray-800/40 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-inner'}`}>
+        <div className="space-y-3">
+          <label className={`text-[11px] font-black text-gray-400 uppercase tracking-widest ${isSidebar ? 'ml-0' : 'ml-1'}`}>
+            Taxation
+          </label>
+          <div className={`flex ${isSidebar ? 'flex-col' : 'items-center'} gap-3`}>
+            <div className="relative flex-1">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">%</span>
+              <input 
+                type="number" 
+                className={`w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl px-3 py-2.5 text-sm text-center focus:ring-2 focus:ring-primary-500/20 outline-none transition-all shadow-sm`} 
+                value={taxRate === 0 ? '' : taxRate} 
+                onChange={(e) => handleTaxRateChange(e.target.value)}
+                placeholder="Tax Rate %"
+              />
+            </div>
+            <div className="relative flex-[1.5]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">₹</span>
+              <input 
+                type="number" 
+                className={`w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-500/20 outline-none transition-all shadow-sm`} 
+                value={taxAmount === 0 ? '' : taxAmount.toFixed(0)} 
+                onChange={(e) => handleTaxAmountChange(e.target.value)}
+                placeholder="Tax Amount ₹"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className={`text-[11px] font-black text-gray-400 uppercase tracking-widest ${isSidebar ? 'ml-0' : 'ml-1'}`}>
+            Discount
+          </label>
+          <div className={`flex ${isSidebar ? 'flex-col' : 'items-center'} gap-3`}>
+            <div className="relative flex-1">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">%</span>
+              <input 
+                type="number" 
+                className={`w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl px-3 py-2.5 text-sm text-center focus:ring-2 focus:ring-primary-500/20 outline-none transition-all shadow-sm`} 
+                value={discountRate === 0 ? '' : discountRate} 
+                onChange={(e) => handleDiscountRateChange(e.target.value)}
+                placeholder="Discount Rate %"
+              />
+            </div>
+            <div className="relative flex-[1.5]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">₹</span>
+              <input 
+                type="number" 
+                className={`w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl pl-8 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-500/20 outline-none transition-all shadow-sm`} 
+                value={discountAmount === 0 ? '' : discountAmount.toFixed(0)} 
+                onChange={(e) => handleDiscountAmountChange(e.target.value)}
+                placeholder="Discount Amount ₹"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ─── Product Grid ─────────────────────────────────────────────────────────
   const productGrid = (
     <div className="card flex-1 flex flex-col min-h-0 overflow-hidden p-4">
@@ -213,8 +334,8 @@ export default function NewSalePage() {
           type="text" 
           placeholder="Search by name or SKU..." 
           className="input pl-10 pr-24"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
         />
         <button 
           onClick={() => setShowFilters(!showFilters)}
@@ -244,35 +365,32 @@ export default function NewSalePage() {
           </button>
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Category</label>
-            <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <select 
+              value={filters.category} 
+              onChange={e => setFilters({ category: e.target.value })} 
+              className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+            >
               <option value="all">All Categories</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              {storeCategories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Brand</label>
-            <select value={selectedBrand} onChange={e => setSelectedBrand(e.target.value)} className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <select 
+              value={filters.brand || 'all'} 
+              onChange={e => setFilters({ brand: e.target.value === 'all' ? '' : e.target.value })} 
+              className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+            >
               <option value="all">All Brands</option>
               {brands.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div className="md:col-span-2 flex items-end gap-2">
-            <div className="flex-1 flex gap-2">
-              <div className="flex-1">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Min Price</label>
-                <input type="number" min="0" placeholder="₹ Min" value={priceRange.min} onChange={e => setPriceRange(prev => ({...prev, min: e.target.value}))} className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Max Price</label>
-                <input type="number" min="0" placeholder="₹ Max" value={priceRange.max} onChange={e => setPriceRange(prev => ({...prev, max: e.target.value}))} className="w-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all" />
-              </div>
-            </div>
             <button 
-              onClick={() => { setSelectedCategory('all'); setSelectedBrand('all'); setPriceRange({min: '', max: ''}); }}
-              className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-              title="Reset Filters"
+              onClick={() => { setFilters({ category: 'all', brand: '', search: '' }); setLocalSearch(''); }}
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 font-bold text-xs"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4" /> Reset All Filters
             </button>
           </div>
         </div>
@@ -280,27 +398,27 @@ export default function NewSalePage() {
 
       <div className="flex items-center justify-between mb-3 px-1">
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-          {searchTerm || selectedCategory !== 'all' || selectedBrand !== 'all' || priceRange.min || priceRange.max ? (
+          {filters.search || filters.category !== 'all' ? (
             <span className="text-primary-600">Filtered Results</span>
           ) : (
             <span>All Products</span>
           )}
           <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-300">
-            {filteredProducts.length}
+            {total}
           </span>
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pr-1">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 pr-1">
         {isLoading ? (
           <div className="col-span-full flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary-600" /></div>
-        ) : filteredProducts.length === 0 ? (
+        ) : products.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
             <Package className="w-10 h-10 mb-2 opacity-30" />
             <p className="italic text-sm">No products found</p>
           </div>
         ) : (
-          filteredProducts.map(p => (
+          products.map(p => (
             <button 
               key={p._id}
               onClick={() => { addToCart(p); }}
@@ -328,43 +446,83 @@ export default function NewSalePage() {
 
               <div className="p-3 flex-1 flex flex-col border-t-[3px] gap-1.5" style={{ borderTopColor: p.color || '#3b82f6' }}>
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-[9px] text-gray-400 font-mono truncate uppercase tracking-tighter">{p.sku} • {p.brand || 'General'}</p>
+                  <p className="text-[9px] text-gray-400 font-mono truncate uppercase tracking-tighter">
+                    {p.sku} • {p.brand || 'General'} {p.dimensions ? `• ${p.dimensions}` : ''}
+                  </p>
                   <p className="text-xs font-bold text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight h-8 mb-1">{p.name}</p>
                 </div>
                 
                 <div className="flex items-center justify-between mt-auto pt-1">
-                  <p className="text-primary-600 dark:text-primary-400 font-black text-sm">₹{p.price.toLocaleString('en-IN')}</p>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-lg font-bold ${p.quantity <= 5 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                    {p.quantity} {p.unit}
-                  </span>
+                  {!hidePrice && <p className="text-primary-600 dark:text-primary-400 font-black text-sm">₹{p.price.toLocaleString('en-IN')}</p>}
+                  <div className={`flex flex-col items-end ${hidePrice ? 'w-full' : ''}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-lg font-bold ${p.quantity <= 5 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                      {p.quantity} {p.unit} (Boxes)
+                    </span>
+                    {p.pieces_per_box > 1 && (
+                      <span className="text-[9px] text-gray-400 font-medium">
+                        {p.ava_pieces} Separate Pcs
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </button>
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 px-1">
+          <p className="text-[10px] font-bold text-gray-400 uppercase">Page {page} of {totalPages}</p>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setPage(page - 1)} 
+              disabled={page === 1}
+              className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 disabled:opacity-30 transition-all active:scale-95"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button 
+              onClick={() => setPage(page + 1)} 
+              disabled={page === totalPages}
+              className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 disabled:opacity-30 transition-all active:scale-95"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
   // ─── Cart Panel ───────────────────────────────────────────────────────────
   const cartPanel = (
-    <div className="card flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="card flex-1 flex flex-col min-h-0 overflow-hidden relative">
       <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-        <h2 className="font-bold flex items-center gap-2 text-gray-900 dark:text-white">
-          <ShoppingCart className="w-5 h-5 text-primary-600" />
-          Cart ({cart.length} items)
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+            <ShoppingCart className="w-5 h-5 text-primary-600" />
+            Cart ({cart.length})
+          </h2>
+        </div>
         {cart.length > 0 && (
-          <button onClick={() => setCart([])} className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">Clear all</button>
+          <button onClick={() => clearCart()} className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">Clear all</button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="p-4 space-y-2">
         {cart.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-400 py-10">
             <ShoppingCart className="w-12 h-12 mb-3 opacity-20" />
             <p className="text-sm italic">Cart is empty</p>
-            <p className="text-xs text-gray-300 mt-1">Tap a product to add it</p>
+            <p className="text-xs text-gray-300 mt-1 mb-4">Tap a product to add it</p>
+            <button 
+              onClick={() => setActiveTab('products')}
+              className="px-4 py-2 bg-primary-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-primary-500/20 active:scale-95 transition-all md:hidden"
+            >
+              Add Products
+            </button>
           </div>
         ) : (
           cart.map(item => (
@@ -380,20 +538,62 @@ export default function NewSalePage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{item.name}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{item.name}</p>
+                    {item.product?.dimensions && (
+                      <span className="text-[9px] font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                        {item.product.dimensions}
+                      </span>
+                    )}
+                  </div>
                   {(item.isDamaged || item.isWrongProduct) ? (
                     <p className="text-xs font-bold text-red-500 uppercase tracking-tight">Free / Reporting Only</p>
                   ) : (
-                    <p className="text-xs text-gray-500">
-                      ₹{item.price.toLocaleString('en-IN')} × {item.quantity} = <span className="font-semibold text-primary-600">₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
-                      {item.isSample && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Sample</span>}
-                    </p>
+                    <div className="text-xs text-gray-500">
+                      {!hidePrice && (
+                        <>
+                          <p>Boxes: ₹{item.price.toLocaleString('en-IN')} × {item.quantity}</p>
+                          {item.pieces > 0 && (
+                            <p>Pieces: ₹{(item.price / (item.pieces_per_box || 1)).toFixed(2)} × {item.pieces}</p>
+                          )}
+                          <p className="font-semibold text-primary-600 mt-0.5">
+                            Total: ₹{( (item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1))) ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            {item.isSample && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Sample</span>}
+                          </p>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-0.5">
-                  <button onClick={() => updateQty(item.product, -1)} className="p-1.5 hover:text-primary-600 transition-colors rounded touch-target"><Minus className="w-3.5 h-3.5" /></button>
-                  <span className="text-xs w-6 text-center font-bold">{item.quantity}</span>
-                  <button onClick={() => updateQty(item.product, 1)} className="p-1.5 hover:text-primary-600 transition-colors rounded touch-target"><Plus className="w-3.5 h-3.5" /></button>
+                <div className="flex flex-col gap-1 items-end">
+                  <div className="flex items-center gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-0.5">
+                    <button onClick={() => updateQty(item.product, -1)} className="p-1 hover:text-primary-600 transition-colors rounded"><Minus className="w-3 h-3" /></button>
+                    <span className="text-[10px] w-6 text-center font-bold">{item.quantity} B</span>
+                    <button onClick={() => updateQty(item.product, 1)} className="p-1 hover:text-primary-600 transition-colors rounded"><Plus className="w-3 h-3" /></button>
+                  </div>
+                  {item.pieces_per_box > 1 && (
+                    <div className="flex items-center gap-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-0.5">
+                      <button 
+                        onClick={() => {
+                          const { setPieces } = useCartStore.getState();
+                          setPieces(item.product, item.pieces - 1);
+                        }} 
+                        className="p-1 hover:text-primary-600 transition-colors rounded"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="text-[10px] w-6 text-center font-bold">{item.pieces} P</span>
+                      <button 
+                        onClick={() => {
+                          const { setPieces } = useCartStore.getState();
+                          setPieces(item.product, item.pieces + 1);
+                        }} 
+                        className="p-1 hover:text-primary-600 transition-colors rounded"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => removeFromCart(item.product)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded touch-target">
                   <Trash2 className="w-4 h-4" />
@@ -441,23 +641,33 @@ export default function NewSalePage() {
       </div>
 
       {/* Checkout section */}
-      <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 space-y-3">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 space-y-4">
         {/* Totals & next button */}
         <div className="pt-1">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-gray-500">Subtotal</span>
-            <span className="text-sm font-medium text-gray-800 dark:text-gray-200">₹{subtotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-          </div>
-          {taxAmount > 0 && (
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm text-gray-500">Tax ({defaultTaxRate}%)</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">+ ₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-            </div>
+          {!hidePrice && (
+            <>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-500">Subtotal</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">₹{subtotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+              </div>
+              {!hideTax && taxAmount > 0 && (
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-gray-500">Tax ({taxRate.toFixed(1)}%)</span>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">+ ₹{taxAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-gray-500">Discount ({discountRate.toFixed(1)}%)</span>
+                  <span className="text-sm font-medium text-red-600">- ₹{discountAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center mb-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-base font-bold text-gray-900 dark:text-white">Total</span>
+                <span className="text-xl font-bold text-primary-600">₹{finalTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+              </div>
+            </>
           )}
-          <div className="flex justify-between items-center mb-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-            <span className="text-base font-bold text-gray-900 dark:text-white">Total</span>
-            <span className="text-xl font-bold text-primary-600">₹{finalTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-          </div>
           <button 
             onClick={() => setShowCheckoutModal(true)}
             disabled={cart.length === 0}
@@ -485,7 +695,7 @@ export default function NewSalePage() {
       )}
 
       {/* ── DESKTOP LAYOUT (side by side) ──────────────────────────────────── */}
-      <div className="hidden lg:flex gap-6 h-[calc(100vh-120px)]">
+      <div className="hidden lg:flex gap-6">
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mb-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">New Sale</h1>
@@ -493,14 +703,29 @@ export default function NewSalePage() {
           </div>
           {productGrid}
         </div>
-        <div className="w-96 flex flex-col min-h-0">
+        <div className="w-[440px] flex flex-col min-h-0">
           <div className="mb-4 invisible"><h1 className="text-2xl font-bold">placeholder</h1></div>
           {cartPanel}
         </div>
       </div>
 
       {/* ── MOBILE LAYOUT (tab-based) ───────────────────────────────────────── */}
-      <div className="lg:hidden flex flex-col h-[calc(100dvh-8rem)]">
+      <div className="lg:hidden flex flex-col">
+        {/* Mobile Header: Title + History button */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">New Sale</h1>
+            <p className="text-xs text-gray-400">Select products to add to cart</p>
+          </div>
+          <button
+            onClick={() => navigate('/sales')}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold transition-all border border-transparent hover:border-primary-200 dark:hover:border-primary-800"
+          >
+            <History size={14} />
+            History
+          </button>
+        </div>
+
         {/* Tab Switcher */}
         <div className="flex gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
           <button
@@ -523,8 +748,19 @@ export default function NewSalePage() {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col relative">
           {activeTab === 'products' ? productGrid : cartPanel}
+          
+          {/* Fixed FAB for Mobile Cart - Redirects to Products */}
+          {activeTab === 'cart' && (
+            <button 
+              onClick={() => setActiveTab('products')}
+              className="fixed bottom-28 right-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-primary-700 active:scale-90 transition-all z-[100] border-4 border-white dark:border-gray-900 shadow-primary-500/40"
+              title="Add more products"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -549,28 +785,60 @@ export default function NewSalePage() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{productToConfirm.name}</p>
-                <p className="text-xs text-primary-600 font-semibold">₹{productToConfirm.price.toLocaleString('en-IN')}</p>
+                {!hidePrice && <p className="text-xs text-primary-600 font-semibold">₹{productToConfirm.price.toLocaleString('en-IN')}</p>}
                 <p className="text-[10px] text-gray-400 mt-0.5">Stock: {productToConfirm.quantity} {productToConfirm.unit}</p>
               </div>
             </div>
 
             <div className="space-y-6">
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Quantity</label>
-                <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-2xl p-1">
-                  <button 
-                    onClick={() => setConfirmQty(Math.max(1, confirmQty - 1))}
-                    className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
-                  >
-                    <Minus className="w-5 h-5" />
-                  </button>
-                  <span className="text-xl font-bold text-gray-900 dark:text-white">{confirmQty}</span>
-                  <button 
-                    onClick={() => setConfirmQty(Math.min(productToConfirm.quantity, confirmQty + 1))}
-                    className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Boxes ({productToConfirm.unit})</label>
+                  <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-2xl p-1">
+                    <button 
+                      onClick={() => setConfirmQty(Math.max(0, confirmQty - 1))}
+                      className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input 
+                      type="number" 
+                      className="w-12 bg-transparent text-center text-lg font-bold text-gray-900 dark:text-white outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      value={confirmQty}
+                      onChange={(e) => setConfirmQty(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                    <button 
+                      onClick={() => setConfirmQty(confirmQty + 1)}
+                      className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Loose Pieces</label>
+                  <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-2xl p-1">
+                    <button 
+                      onClick={() => setConfirmPieces(Math.max(0, confirmPieces - 1))}
+                      className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input 
+                      type="number" 
+                      className="w-12 bg-transparent text-center text-lg font-bold text-gray-900 dark:text-white outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      value={confirmPieces}
+                      onChange={(e) => setConfirmPieces(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                    <button 
+                      onClick={() => setConfirmPieces(confirmPieces + 1)}
+                      className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-sm active:scale-95 transition-all text-gray-600"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -600,10 +868,12 @@ export default function NewSalePage() {
 
               <button 
                 onClick={handleConfirmAdd}
-                className="btn-primary w-full py-4 rounded-2xl text-base font-bold shadow-lg shadow-primary-500/20"
+                disabled={(confirmQty <= 0 && confirmPieces <= 0)}
+                className="btn-primary w-full py-4 rounded-2xl text-base font-bold shadow-lg shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Confirm Addition
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -612,7 +882,7 @@ export default function NewSalePage() {
       {/* Big Checkout Modal */}
       {showCheckoutModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-gray-900 w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+          <div className="bg-white dark:bg-gray-900 w-full h-full md:h-auto md:max-h-[90vh] md:max-w-5xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-10">
               <div>
@@ -635,15 +905,27 @@ export default function NewSalePage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{item.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {item.quantity} × ₹{item.price.toLocaleString('en-IN')}
-                            {item.isSample && <span className="ml-2 text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Sample</span>}
-                            {(item.isDamaged || item.isWrongProduct) && <span className="ml-2 text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Reporting</span>}
-                          </p>
+                          <div className="flex flex-col">
+                            <p className="text-xs text-gray-500">
+                              {item.quantity} Boxes × ₹{item.price.toLocaleString('en-IN')}
+                            </p>
+                            {item.pieces > 0 && (
+                              <p className="text-[10px] text-gray-400">
+                                {item.pieces} Pieces × ₹{(item.price / (item.pieces_per_box || 1)).toFixed(2)}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs font-black text-primary-600">
+                                Total: ₹{( (item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1))) ).toLocaleString('en-IN')}
+                              </span>
+                              {item.isSample && <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase">Sample</span>}
+                              {(item.isDamaged || item.isWrongProduct) && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Reporting</span>}
+                            </div>
+                          </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">
-                            ₹{((item.isDamaged || item.isWrongProduct) ? 0 : item.price * item.quantity).toLocaleString('en-IN')}
+                          <p className="text-sm font-black text-gray-900 dark:text-white">
+                            ₹{( (item.isDamaged || item.isWrongProduct) ? 0 : ((item.price * item.quantity) + (item.pieces * (item.price / (item.pieces_per_box || 1)))) ).toLocaleString('en-IN')}
                           </p>
                         </div>
                       </div>
@@ -657,14 +939,25 @@ export default function NewSalePage() {
                     </div>
                     {taxAmount > 0 && (
                       <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                        <span>Tax ({defaultTaxRate}%)</span>
+                        <span>Tax ({taxRate.toFixed(1)}%)</span>
                         <span className="font-bold">+ ₹{taxAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span>Discount ({discountRate.toFixed(1)}%)</span>
+                        <span className="font-bold text-red-600">- ₹{discountAmount.toLocaleString('en-IN')}</span>
                       </div>
                     )}
                     <div className="pt-3 border-t border-primary-200/50 dark:border-primary-800/50 flex justify-between items-center">
                       <span className="text-base font-bold text-primary-700 dark:text-primary-400">Total Amount</span>
                       <span className="text-2xl font-black text-primary-700 dark:text-primary-400">₹{finalTotal.toLocaleString('en-IN')}</span>
                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Taxes & Discounts</h3>
+                    {renderTaxDiscountFields()}
                   </div>
                 </div>
 
@@ -694,6 +987,28 @@ export default function NewSalePage() {
                       <div className="md:col-span-2 space-y-1.5">
                         <label className="text-xs font-semibold text-gray-500 ml-1">Address</label>
                         <textarea placeholder="Full delivery address..." className="input min-h-[80px] py-3 resize-none" value={customer.addressLine} onChange={(e) => setCustomer({...customer, addressLine: e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Driver / Transporter Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Driver Name</label>
+                        <input type="text" placeholder="Driver name" className="input" value={transporter.name} onChange={(e) => setTransporter({...transporter, name: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Driver Mobile</label>
+                        <input type="text" placeholder="Mobile number" className="input" value={transporter.mobile} onChange={(e) => setTransporter({...transporter, mobile: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Vehicle Type</label>
+                        <input type="text" placeholder="e.g. Truck, Van" className="input" value={transporter.vehicleType} onChange={(e) => setTransporter({...transporter, vehicleType: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-gray-500 ml-1">Vehicle Number</label>
+                        <input type="text" placeholder="e.g. AP 01 AB 1234" className="input" value={transporter.vehicleNumber} onChange={(e) => setTransporter({...transporter, vehicleNumber: e.target.value})} />
                       </div>
                     </div>
                   </div>

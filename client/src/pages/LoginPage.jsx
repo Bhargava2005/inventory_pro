@@ -36,7 +36,7 @@ export default function LoginPage() {
     const result = await login({ ...data, intendedRole: loginMode });
     if (result.success) {
       toast.success(`Welcome back, ${loginMode}!`);
-      const defaultPath = loginMode === 'staff' ? '/pos' : '/dashboard';
+      const defaultPath = loginMode === 'staff' ? '/staff-home' : '/dashboard';
       navigate(location.state?.from?.pathname || defaultPath, { replace: true });
     } else {
       setError('root', { message: result.message });

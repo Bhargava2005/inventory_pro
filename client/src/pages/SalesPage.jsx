@@ -1,9 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search, FileText, Calendar, Loader2, Filter,
-  Download, FileDown, FileUp, ChevronLeft, ChevronRight,
+  Download, FileDown, FileUp, ChevronLeft, ChevronRight, ArrowLeft, Store,
 } from 'lucide-react';
 import useSaleStore from '../store/saleStore.js';
+import useBranchStore from '../store/branchStore.js';
+import useAuthStore from '../store/authStore.js';
+import useSettingsStore from '../store/settingsStore.js';
 import { generateInvoicePDF } from '../utils/pdfGenerator.js';
 import api from '../api/client.js';
 import toast from 'react-hot-toast';
@@ -18,6 +22,7 @@ const paymentBadge = {
 
 export default function SalesPage() {
   const { sales, fetchSales, isLoading, page, totalPages, total, setPage } = useSaleStore();
+  const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm]   = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -31,6 +36,15 @@ export default function SalesPage() {
   const [importHeaders, setImportHeaders] = useState(null);
   const [isScanning, setIsScanning]       = useState(false);
   const [selectedSale, setSelectedSale]   = useState(null);
+  const [selectedBranch, setSelectedBranch] = useState('');
+
+  const { branches, fetchBranches } = useBranchStore();
+  const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
+  const isAdmin = user?.role === 'admin';
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod;
 
   // Debounce the search input (500 ms) so we don't fire on every keystroke
   useEffect(() => {
@@ -41,12 +55,16 @@ export default function SalesPage() {
   // Reset to page 1 whenever filters / search change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, startDate, endDate]);
+  }, [debouncedSearch, startDate, endDate, selectedBranch]);
+
+  useEffect(() => {
+    if (isAdmin) fetchBranches();
+  }, [isAdmin]);
 
   // Fetch whenever page or filters change
   useEffect(() => {
-    fetchSales({ search: debouncedSearch, startDate, endDate });
-  }, [page, debouncedSearch, startDate, endDate]);
+    fetchSales({ search: debouncedSearch, startDate, endDate, branchId: selectedBranch });
+  }, [page, debouncedSearch, startDate, endDate, selectedBranch]);
 
   /* ── import handlers ─────────────────────────────────────────────────── */
   const handleFileSelect = async (e) => {
@@ -107,15 +125,28 @@ export default function SalesPage() {
 
   const handleClearFilters = () => {
     setStartDate(''); setEndDate(''); setSearchTerm(''); setDebouncedSearch('');
+    setSelectedBranch('');
   };
 
-  const hasActiveFilters = searchTerm || startDate || endDate;
+  const hasActiveFilters = searchTerm || startDate || endDate || selectedBranch;
 
   /* ── render ──────────────────────────────────────────────────────────── */
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      {/* Mobile back button — returns to New Sale page */}
+      <div className="md:hidden flex items-center gap-3 mb-4">
+        <button
+          onClick={() => navigate('/pos')}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-semibold"
+        >
+          <ArrowLeft size={16} />
+          New Sale
+        </button>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-white">Sales History</h1>
+      </div>
+
+      {/* Header (desktop only) */}
+      <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales History</h1>
           <p className="text-sm text-gray-500">
@@ -187,7 +218,27 @@ export default function SalesPage() {
                   <input type="date" className="input pl-10" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                 </div>
               </div>
-              <button onClick={handleClearFilters} className="btn-secondary">Reset All</button>
+              {isAdmin && (
+                <div>
+                  <label className="label">Branch</label>
+                  <div className="relative">
+                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <select 
+                      className="input pl-10" 
+                      value={selectedBranch} 
+                      onChange={(e) => setSelectedBranch(e.target.value)}
+                    >
+                      <option value="">All Branches</option>
+                      {branches.map(b => (
+                        <option key={b._id} value={b._id}>{b.name} ({b.code})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+              <div className={isAdmin ? 'sm:col-span-3 flex justify-end' : ''}>
+                <button onClick={handleClearFilters} className="btn-secondary h-10">Reset All</button>
+              </div>
             </div>
           </div>
         )}
@@ -245,10 +296,12 @@ export default function SalesPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-primary-600">₹{s.totalAmount.toLocaleString('en-IN')}</p>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${paymentBadge[s.paymentMethod] || 'bg-gray-100 text-gray-500'}`}>
-                      {s.paymentMethod}
-                    </span>
+                    {!hidePrice && <p className="text-lg font-bold text-primary-600">₹{s.totalAmount.toLocaleString('en-IN')}</p>}
+                    {!hidePayment && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${paymentBadge[s.paymentMethod] || 'bg-gray-100 text-gray-500'}`}>
+                        {s.paymentMethod}
+                      </span>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">{s.items.length} items</p>
                   </div>
                 </div>
@@ -266,7 +319,7 @@ export default function SalesPage() {
                     <th className="text-left px-6 py-4 font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-xs">Date</th>
                     <th className="text-left px-6 py-4 font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-xs">Customer</th>
                     <th className="text-left px-6 py-4 font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-xs">Items</th>
-                    <th className="text-right px-6 py-4 font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-xs">Total</th>
+                    {!hidePrice && <th className="text-right px-6 py-4 font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-xs">Total</th>}
                     <th className="text-center px-6 py-4 font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider text-xs">Invoice</th>
                   </tr>
                 </thead>
@@ -292,10 +345,12 @@ export default function SalesPage() {
                         {s.customer?.phone && <p className="text-xs text-gray-400">{s.customer.phone}</p>}
                       </td>
                       <td className="px-6 py-4 text-gray-500">{s.items.length} items</td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="font-bold text-primary-600">₹{s.totalAmount.toLocaleString('en-IN')}</span>
-                        <p className="text-[10px] uppercase text-gray-400">{s.paymentMethod}</p>
-                      </td>
+                      {!hidePrice && (
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-bold text-primary-600">₹{s.totalAmount.toLocaleString('en-IN')}</span>
+                          {!hidePayment && <p className="text-[10px] uppercase text-gray-400">{s.paymentMethod}</p>}
+                        </td>
+                      )}
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={(e) => {

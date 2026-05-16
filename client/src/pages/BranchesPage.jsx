@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, MapPin, Phone, Mail, Store, Pencil, Trash2, Loader2, X, Users, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, MapPin, Phone, Mail, Store, Pencil, Trash2, Loader2, X, Users, UserPlus, ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -90,6 +91,7 @@ export default function BranchesPage({ hideHeader }) {
   const { branches, fetchBranches, isLoading, deactivateBranch } = useBranchStore();
   const { users, fetchUsers } = useUserStore();
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [editBranch, setEditBranch] = useState(null);
   const [viewStaff, setViewStaff] = useState(null);
@@ -101,6 +103,26 @@ export default function BranchesPage({ hideHeader }) {
     fetchUsers();
   }, []);
 
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+        <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
+          <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-wider mb-2">Access Denied</h2>
+        <p className="text-gray-500 dark:text-gray-400 max-w-sm mb-8">
+          Only administrators can manage or view branch locations. Please contact your system administrator if you believe this is an error.
+        </p>
+        <button 
+          onClick={() => navigate('/dashboard')}
+          className="btn-primary px-8 py-3 rounded-2xl font-bold shadow-lg shadow-primary-500/20"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to deactivate this branch?')) {
       const result = await deactivateBranch(id);
@@ -110,6 +132,18 @@ export default function BranchesPage({ hideHeader }) {
 
   return (
     <div>
+      {/* Mobile back button — returns to Profile page */}
+      <div className="md:hidden flex items-center gap-3 mb-4">
+        <button
+          onClick={() => navigate('/profile')}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all text-sm font-semibold"
+        >
+          <ArrowLeft size={16} />
+          Profile
+        </button>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-white">Branches &amp; Stores</h1>
+      </div>
+
       {!hideHeader && (
         <div className="flex items-center justify-between mb-6">
           <div>

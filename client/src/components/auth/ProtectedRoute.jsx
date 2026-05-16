@@ -22,7 +22,8 @@ export const RoleRoute = ({ children, allowedRoles }) => {
   }
 
   if (!allowedRoles.includes(user?.role)) {
-    return <Navigate to="/dashboard" replace />;
+    const defaultPath = user?.role === 'staff' ? '/staff-home' : '/dashboard';
+    return <Navigate to={defaultPath} replace />;
   }
 
   return children;
@@ -30,10 +31,11 @@ export const RoleRoute = ({ children, allowedRoles }) => {
 
 // Guest only — redirects to dashboard if already logged in
 export const GuestRoute = ({ children }) => {
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    const defaultPath = user?.role === 'staff' ? '/staff-home' : '/dashboard';
+    return <Navigate to={defaultPath} replace />;
   }
 
   return children;

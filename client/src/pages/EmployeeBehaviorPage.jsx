@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User, Brain, Timer, UserMinus, TrendingUp,
   AlertTriangle, Clock, ShieldAlert,
   Search, Download, Calendar, Store,
-  RefreshCw, Package, ChevronRight,
+  RefreshCw, Package, ChevronRight, ArrowLeft,
 } from 'lucide-react';
 import { employeeAPI } from '../api/employee';
 import toast from 'react-hot-toast';
@@ -35,8 +36,10 @@ export default function EmployeeBehaviorPage() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showExport, setShowExport] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('');
+  const [showMobileStats, setShowMobileStats] = useState(false);
+  const navigate = useNavigate();
 
-  const { isAdmin } = useAuthStore();
+  const { user, isAdmin } = useAuthStore();
   const { branches, fetchBranches } = useBranchStore();
 
   const now = new Date();
@@ -101,8 +104,23 @@ export default function EmployeeBehaviorPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Mobile back button — returns to Staff Management */}
+      <div className="md:hidden flex items-center gap-3">
+        <button
+          onClick={() => navigate('/users')}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-sm font-semibold"
+        >
+          <ArrowLeft size={16} />
+          Staff
+        </button>
+        <h1 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <Brain className="w-5 h-5 text-primary-600" />
+          Employee Behavior
+        </h1>
+      </div>
+
+      {/* Header (desktop) */}
+      <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Brain className="w-7 h-7 text-primary-600" />
@@ -114,75 +132,89 @@ export default function EmployeeBehaviorPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Branch selector */}
-          {isAdmin() && (
-            <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[180px]">
-              <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="bg-transparent border-none text-sm focus:ring-0 p-0 dark:text-white w-full outline-none"
-              >
-                <option value="">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b._id} value={b._id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Date range */}
-          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 flex-1 sm:flex-none">
-            <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <input type="date"
-              className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none flex-1 sm:w-auto"
-              value={dateRange.startDate}
-              onChange={(e) => setDateRange((p) => ({ ...p, startDate: e.target.value }))} />
-            <span className="text-gray-400 text-xs">→</span>
-            <input type="date"
-              className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none flex-1 sm:w-auto"
-              value={dateRange.endDate}
-              onChange={(e) => setDateRange((p) => ({ ...p, endDate: e.target.value }))} />
-          </div>
-
-          {/* Export button */}
-          <button
-            onClick={() => setShowExport(true)}
-            className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+          {/* Mobile Toggle Button */}
+          <button 
+            onClick={() => setShowMobileStats(!showMobileStats)}
+            className="md:hidden flex items-center justify-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded-xl text-sm font-bold border border-primary-100 dark:border-primary-800 transition shadow-sm w-full"
           >
-            <Download className="w-4 h-4" />
-            Export
+            {showMobileStats ? 'Hide Filters & Stats' : 'Show Filters & Stats'}
+            {showMobileStats ? <ChevronRight className="w-4 h-4 rotate-90" /> : <ChevronRight className="w-4 h-4 -rotate-90" />}
           </button>
+          <div className={`${showMobileStats ? 'flex' : 'hidden'} md:flex flex-wrap items-center gap-2 w-full md:w-auto`}>
+            {/* Branch selector */}
+            {isAdmin() && (
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 w-full sm:w-auto sm:min-w-[180px]">
+                <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="bg-transparent border-none text-sm focus:ring-0 p-0 dark:text-white w-full outline-none"
+                >
+                  <option value="">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b._id} value={b._id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Date range */}
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-1.5 flex-1 sm:flex-none">
+              <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <input type="date"
+                className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none flex-1 sm:w-auto"
+                value={dateRange.startDate}
+                onChange={(e) => setDateRange((p) => ({ ...p, startDate: e.target.value }))} />
+              <span className="text-gray-400 text-xs">→</span>
+              <input type="date"
+                className="bg-transparent border-none text-xs focus:ring-0 p-0 dark:text-white outline-none flex-1 sm:w-auto"
+                value={dateRange.endDate}
+                onChange={(e) => setDateRange((p) => ({ ...p, endDate: e.target.value }))} />
+            </div>
+
+            {/* Export button */}
+            <button
+              onClick={() => setShowExport(true)}
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Search bar */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          className="input pl-10 h-11 text-sm w-full"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 px-1">
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Legend:</span>
-        {[
-          { color: 'bg-primary-500', label: 'Sales' },
-          { color: 'bg-red-500', label: 'Damaged' },
-          { color: 'bg-amber-500', label: 'Exchange' },
-          { color: 'bg-purple-500', label: 'Wrong Product' },
-          { color: 'bg-teal-500', label: 'Sample' },
-        ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-sm ${color} flex-shrink-0`} />
-            <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+      <div className={`${showMobileStats ? 'block' : 'hidden'} md:block space-y-6`}>
+        {/* Search bar */}
+        {user?.role !== 'staff' && (
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              className="input pl-10 h-11 text-sm w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-        ))}
+        )}
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-4 px-1">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Legend:</span>
+          {[
+            { color: 'bg-primary-500', label: 'Sales' },
+            { color: 'bg-red-500', label: 'Damaged' },
+            { color: 'bg-amber-500', label: 'Exchange' },
+            { color: 'bg-purple-500', label: 'Wrong Product' },
+            { color: 'bg-teal-500', label: 'Sample' },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-sm ${color} flex-shrink-0`} />
+              <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* List header */}

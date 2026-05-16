@@ -8,7 +8,7 @@ import { logAction } from './notificationController.js';
 // @access Private
 export const getProducts = async (req, res, next) => {
   try {
-    const { search, category, sort = '-createdAt', page = 1, limit = 12, status } = req.query;
+    const { search, category, brand, sort = '-createdAt', page = 1, limit = 12, status } = req.query;
 
     const query = { isActive: true, storeId: req.user.storeId };
 
@@ -39,6 +39,7 @@ export const getProducts = async (req, res, next) => {
     }
 
     if (category && category !== 'all') query.category = category;
+    if (brand) query.brand = brand;
 
     if (status === 'low') {
       query.$expr = {
@@ -144,8 +145,12 @@ export const createProduct = async (req, res, next) => {
     const { 
       name, category, description, price, costPrice, quantity, minStockLevel, 
       unit, supplier, sku, branchId, brand, image, color,
-      damagedStock, sampleStock, exchangedStock, wrongProductStock
+      damagedStock, sampleStock, exchangedStock, wrongProductStock,
+      pieces_per_box, ava_pieces, weight_of_box, dimensions
     } = req.body;
+
+    // Auto-extract dimensions from name if not provided
+    const finalDimensions = dimensions || (name ? (name.match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : '');
 
     // Verify category belongs to this store
     if (category) {
@@ -162,6 +167,10 @@ export const createProduct = async (req, res, next) => {
       sampleStock: sampleStock || 0,
       exchangedStock: exchangedStock || 0,
       wrongProductStock: wrongProductStock || 0,
+      pieces_per_box: pieces_per_box || 1,
+      ava_pieces: ava_pieces || 0,
+      weight_of_box: weight_of_box || 0,
+      dimensions: finalDimensions,
       createdBy: req.user.id,
       storeId: req.user.storeId,
       branchId: assignedBranchId || null
@@ -196,7 +205,8 @@ export const updateProduct = async (req, res, next) => {
     const { 
       name, category, description, price, costPrice, quantity, minStockLevel, 
       unit, supplier, brand, image, color,
-      damagedStock, sampleStock, exchangedStock, wrongProductStock
+      damagedStock, sampleStock, exchangedStock, wrongProductStock,
+      pieces_per_box, ava_pieces, weight_of_box, dimensions
     } = req.body;
 
     const targetProduct = await Product.findById(req.params.id);
@@ -214,7 +224,11 @@ export const updateProduct = async (req, res, next) => {
       { 
         name, category: category || null, description, price, costPrice, quantity, minStockLevel, 
         unit, supplier, brand, image, color,
-        damagedStock, sampleStock, exchangedStock, wrongProductStock
+        damagedStock, sampleStock, exchangedStock, wrongProductStock,
+        pieces_per_box: pieces_per_box ?? targetProduct.pieces_per_box,
+        ava_pieces: ava_pieces ?? targetProduct.ava_pieces,
+        weight_of_box: weight_of_box ?? targetProduct.weight_of_box,
+        dimensions: dimensions ?? (name ? (name.match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : targetProduct.dimensions),
       },
       { new: true, runValidators: true }
     ).populate('category', 'name color');
@@ -392,9 +406,14 @@ export const importProducts = async (req, res, next) => {
         sampleStock: Number(item.sampleStock) || 0,
         exchangedStock: Number(item.exchangedStock) || 0,
         wrongProductStock: Number(item.wrongProductStock) || 0,
+        // Piece-selling fields from import
+        pieces_per_box: Number(item.pieces_per_box) || 1,
+        ava_pieces: Number(item.ava_pieces) || 0,
+        weight_of_box: Number(item.weight_of_box) || 0,
+        dimensions: item.dimensions || (item.name ? (item.name.toString().match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : ''),
         createdBy: req.user.id,
         storeId: req.user.storeId,
-        branchId: req.user.role === 'admin' ? item.branchId : req.user.branchId
+        branchId: req.user.role === 'admin' ? (req.body.branchId || item.branchId) : req.user.branchId
       });
     });
 
@@ -446,6 +465,30 @@ export const importProducts = async (req, res, next) => {
       message: `Import complete: ${results.created} created, ${results.updated} updated`,
       data: results,
       errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// @desc   Get all unique brands
+// @route  GET /api/products/brands
+// @access Private
+export const getBrands = async (req, res, next) => {
+  try {
+    const query = { isActive: true, storeId: req.user.storeId };
+    
+    // Branch-based filtering
+    if (req.user.role !== 'admin' && req.user.branchId) {
+      query.branchId = req.user.branchId;
+    } else if (req.query.branchId) {
+      query.branchId = req.query.branchId;
+    }
+
+    const brands = await Product.distinct('brand', query);
+    
+    res.status(200).json({
+      success: true,
+      data: brands.filter(Boolean).sort(),
     });
   } catch (error) {
     next(error);

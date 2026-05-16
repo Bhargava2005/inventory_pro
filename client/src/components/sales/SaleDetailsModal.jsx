@@ -3,11 +3,13 @@ import { X, Download, User, Calendar, MapPin, CreditCard, ShoppingBag, AlertTria
 import { generateInvoicePDF } from '../../utils/pdfGenerator.js';
 import useSaleStore from '../../store/saleStore.js';
 import useAuthStore from '../../store/authStore.js';
+import useSettingsStore from '../../store/settingsStore.js';
 import toast from 'react-hot-toast';
 
 export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   const { updateSaleItem, isSubmitting } = useSaleStore();
   const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
   const [sale, setSale] = useState(initialSale);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editingItem, setEditingItem] = useState(null); // { id, ...data }
@@ -16,6 +18,11 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   const isPrivileged = ['admin', 'manager'].includes(user?.role);
   const soldById = typeof sale.soldBy === 'string' ? sale.soldBy : sale.soldBy?._id;
   const isOwner = soldById === user?.id;
+  
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod;
   
   if (!sale) return null;
 
@@ -52,7 +59,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{sale.invoiceNumber}</h2>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Transaction Details</p>
+              <p className="text-[10px] text-primary-600 font-bold uppercase tracking-widest">Tax Invoice</p>
             </div>
           </div>
           
@@ -95,13 +102,23 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
               </h3>
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700">
                 <p className="font-bold text-gray-900 dark:text-white">{sale.customer?.name || 'Walk-in Customer'}</p>
-                {sale.customer?.phone ? (
-                  <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                    <Smartphone className="w-3.5 h-3.5" /> {sale.customer.phone}
-                  </p>
-                ) : (
-                  <p className="text-xs italic text-gray-400 mt-1">No phone provided</p>
+                {sale.customer?.companyName && (
+                  <p className="text-xs font-semibold text-primary-600 mt-0.5">{sale.customer.companyName}</p>
                 )}
+                <div className="mt-2 space-y-1">
+                  {sale.customer?.phone ? (
+                    <p className="text-xs text-gray-500 flex items-center gap-2">
+                      <Smartphone className="w-3.5 h-3.5" /> {sale.customer.phone}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] italic text-gray-400">No phone provided</p>
+                  )}
+                  {sale.customer?.addressLine && (
+                    <p className="text-xs text-gray-500 flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" /> {sale.customer.addressLine}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -111,7 +128,15 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
               </h3>
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{sale.storeId?.name || 'Main Branch'}</p>
-                <p className="text-xs text-gray-500 mt-1">Sold by: <span className="font-semibold text-primary-600">{sale.soldBy?.fullName || 'System Admin'}</span></p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-gray-500">Sold by: <span className="font-semibold text-primary-600">{sale.soldBy?.fullName || 'System Admin'}</span></p>
+                  {sale.soldBy?.username && (
+                    <p className="text-[10px] text-gray-400">Staff ID: <span className="font-medium text-gray-600 dark:text-gray-400">{sale.soldBy.username}</span></p>
+                  )}
+                  {sale.soldBy?.phone && (
+                    <p className="text-[10px] text-gray-400">Mobile: <span className="font-medium text-gray-600 dark:text-gray-400">{sale.soldBy.phone}</span></p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -121,13 +146,49 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
               </h3>
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{formatDate(sale.createdAt)}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <CreditCard className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-xs font-bold uppercase text-gray-500">{sale.paymentMethod}</span>
+                <div className="flex items-center justify-between mt-1">
+                  {!hidePayment && (
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-xs font-bold uppercase text-gray-500">{sale.paymentMethod}</span>
+                    </div>
+                  )}
+                  {sale.totalWeight > 0 && (
+                    <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-lg">
+                      {sale.totalWeight.toFixed(2)} KG
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Transporter Details */}
+          {sale.transporter?.name && (
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Box className="w-3 h-3 text-blue-500" /> Driver / Transporter Details
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">Driver Name</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{sale.transporter.name}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">Mobile</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{sale.transporter.mobile || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">Vehicle Type</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{sale.transporter.vehicleType || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">Vehicle #</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{sale.transporter.vehicleNumber || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Items Table */}
           <div className="space-y-4">
@@ -139,10 +200,11 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-800">
                     <th className="text-left px-6 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Product Details</th>
+                    <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Dim.</th>
                     <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Status</th>
                     <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Qty</th>
-                    <th className="text-right px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Price</th>
-                    <th className="text-right px-6 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Subtotal</th>
+                    {!hidePrice && <th className="text-right px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Price</th>}
+                    {!hidePrice && <th className="text-right px-6 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Subtotal</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -160,77 +222,39 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                             )}
                             <div className="absolute top-1 left-1 w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: item.product?.color || '#3b82f6' }} />
                           </div>
-                          <div className="min-w-0 max-w-[200px] md:max-w-[300px]">
-                            <p className="font-bold text-gray-900 dark:text-white break-words line-clamp-2">{item.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] text-gray-400 font-mono">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-gray-900 dark:text-white text-xs md:text-sm leading-tight line-clamp-2">{item.name}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="text-[9px] md:text-[10px] text-gray-400 font-mono whitespace-nowrap bg-gray-50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
                                 SKU: {item.product?.sku || (typeof item.product === 'string' ? item.product.slice(-6) : 'N/A')}
                               </span>
                               {(item.product?.category?.name || item.product?.category) && (
-                                <span className="text-[10px] text-primary-500 font-medium px-1.5 py-0.5 bg-primary-50 dark:bg-primary-900/20 rounded" style={{ color: item.product?.color, backgroundColor: (item.product?.color || '#3b82f6') + '15' }}>
+                                <span className="text-[9px] md:text-[10px] text-primary-500 font-medium px-1.5 py-0.5 bg-primary-50 dark:bg-primary-900/20 rounded" style={{ color: item.product?.color, backgroundColor: (item.product?.color || '#3b82f6') + '15' }}>
                                   {item.product?.category?.name || 'General'}
                                 </span>
                               )}
+                              {(() => {
+                                const ppb = item.product?.pieces_per_box || 1;
+                                const weightPerBox = item.product?.weight_of_box || 0;
+                                const calculatedWeight = item.weight || ( (item.quantity * weightPerBox) + (item.pieces * (weightPerBox / ppb)) );
+                                return calculatedWeight > 0 ? (
+                                  <span className="text-[9px] md:text-[10px] text-amber-600 font-medium px-1.5 py-0.5 bg-amber-50 dark:bg-amber-900/20 rounded">
+                                    {calculatedWeight.toFixed(2)} KG
+                                  </span>
+                                ) : null;
+                              })()}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        {editingItem?.id === item._id ? (
-                          <div className="flex flex-col gap-2 p-2 bg-primary-50 dark:bg-primary-900/10 rounded-xl border border-primary-100">
-                            <div className="flex flex-wrap justify-center gap-2">
-                              {[
-                                { id: 'isSample', label: 'Sample', Icon: Gift, color: 'text-green-600' },
-                                { id: 'isDamaged', label: 'Damaged', Icon: AlertTriangle, color: 'text-red-600' },
-                                { id: 'isWrongProduct', label: 'Wrong', Icon: Box, color: 'text-purple-600' },
-                                { id: 'isExchange', label: 'Exchange', Icon: RefreshCw, color: 'text-blue-600' },
-                              ].map(flag => (
-                                <button
-                                  key={flag.id}
-                                  onClick={() => setEditingItem({
-                                    ...editingItem,
-                                    data: {
-                                      ...editingItem.data,
-                                      isDamaged: flag.id === 'isDamaged' ? !editingItem.data.isDamaged : false,
-                                      isSample: flag.id === 'isSample' ? !editingItem.data.isSample : false,
-                                      isWrongProduct: flag.id === 'isWrongProduct' ? !editingItem.data.isWrongProduct : false,
-                                      isExchange: flag.id === 'isExchange' ? !editingItem.data.isExchange : false,
-                                    }
-                                  })}
-                                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${editingItem.data[flag.id] ? 'bg-white border-primary-300 shadow-sm' : 'border-transparent text-gray-400 opacity-60'}`}
-                                >
-                                  <flag.Icon className={`w-3 h-3 ${editingItem.data[flag.id] ? flag.color : ''}`} /> {flag.label}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="relative">
-                              <MessageSquare className="absolute left-2 top-2.5 w-3 h-3 text-gray-400" />
-                              <input 
-                                type="text" 
-                                placeholder="Reason for change..." 
-                                className="w-full text-[10px] pl-6 pr-2 py-2 rounded-lg border-gray-200 dark:bg-gray-800"
-                                value={editingItem.data.statusReason || ''}
-                                onChange={(e) => setEditingItem({...editingItem, data: { ...editingItem.data, statusReason: e.target.value }})}
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => handleUpdateStatus(item._id)}
-                                disabled={isSubmitting}
-                                className="flex-1 bg-primary-600 text-white py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"
-                              >
-                                {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Save
-                              </button>
-                              <button 
-                                onClick={() => setEditingItem(null)}
-                                className="flex-1 bg-white border border-gray-200 py-1.5 rounded-lg text-[10px] font-bold"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-2">
+                        <span className="text-[10px] font-mono text-gray-500 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">
+                          {item.product?.dimensions || '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <div className="flex flex-wrap justify-center gap-1">
                               {item.isDamaged && (
                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
@@ -244,7 +268,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                               )}
                               {item.isWrongProduct && (
                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">
-                                  <Box className="w-2.5 h-2.5" /> Wrong Item
+                                  <Box className="w-2.5 h-2.5" /> Wrong
                                 </span>
                               )}
                               {item.isSample && (
@@ -258,85 +282,65 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                                 </span>
                               )}
                             </div>
-                            {item.statusReason && (
-                              <p className="text-[10px] text-gray-400 italic px-2">"{item.statusReason}"</p>
-                            )}
-                            {(isPrivileged || isOwner) && (
-                              <button 
-                                onClick={() => setEditingItem({ 
-                                  id: item._id, 
-                                  data: { 
-                                    isDamaged: item.isDamaged, 
-                                    isExchange: item.isExchange, 
-                                    isSample: item.isSample, 
-                                    isWrongProduct: item.isWrongProduct,
-                                    statusReason: item.statusReason
-                                  } 
-                                })}
-                                className="text-[10px] font-bold text-primary-600 hover:underline flex items-center gap-1"
-                              >
-                                <Edit3 className="w-2.5 h-2.5" /> Update Status
-                              </button>
-                            )}
                             
-                            {/* History Timeline */}
-                            {item.statusHistory && item.statusHistory.length > 0 && (
-                              <div className="mt-2 w-full">
+                            <div className="flex items-center gap-1 border-l border-gray-100 dark:border-gray-800 pl-2">
+                              {(isPrivileged || isOwner) && (
                                 <button 
-                                  onClick={() => setViewingHistory(viewingHistory === item._id ? null : item._id)}
-                                  className={`w-full py-1.5 rounded-lg text-[9px] font-bold flex items-center justify-center gap-1.5 transition-all ${viewingHistory === item._id ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20' : 'text-gray-400 hover:text-primary-600'}`}
+                                  onClick={() => setEditingItem({ 
+                                    id: item._id, 
+                                    data: { 
+                                      isDamaged: item.isDamaged, 
+                                      isExchange: item.isExchange, 
+                                      isSample: item.isSample, 
+                                      isWrongProduct: item.isWrongProduct,
+                                      statusReason: item.statusReason
+                                    } 
+                                  })}
+                                  title="Update Status"
+                                  className="p-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 hover:bg-primary-100 transition-colors"
                                 >
-                                  <History className={`w-3 h-3 ${viewingHistory === item._id ? 'animate-spin-slow' : ''}`} /> 
-                                  {viewingHistory === item._id ? 'Hide Timeline' : 'View Timeline'}
+                                  <Edit3 className="w-3.5 h-3.5" />
                                 </button>
-                                
-                                {viewingHistory === item._id && (
-                                  <div className="mt-3 p-4 bg-gray-50/50 dark:bg-gray-800/40 rounded-2xl border border-gray-100 dark:border-gray-700 text-left space-y-4 animate-in slide-in-from-top-2 duration-300">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status History</p>
-                                      <span className="text-[10px] font-bold text-primary-500 bg-primary-50 dark:bg-primary-900/20 px-2 py-0.5 rounded-full">{item.statusHistory.length} Steps</span>
-                                    </div>
-                                    <div className="space-y-4 relative">
-                                      {/* Vertical Line */}
-                                      <div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-primary-200 via-primary-100 to-transparent dark:from-primary-900/40 dark:via-primary-900/20" />
-                                      
-                                      {item.statusHistory.slice().reverse().map((h, i) => (
-                                        <div key={i} className="relative pl-6 group">
-                                          <div className={`absolute left-0 top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-900 shadow-sm transition-all group-hover:scale-125 ${i === 0 ? 'bg-primary-600 ring-4 ring-primary-500/10' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                                          <div className="flex flex-col">
-                                            <div className="flex items-center justify-between gap-2">
-                                              <p className={`text-[10px] font-bold ${i === 0 ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                                                {h.status}
-                                              </p>
-                                              <p className="text-[8px] font-medium text-gray-400">{formatDate(h.updatedAt)}</p>
-                                            </div>
-                                            {h.reason && (
-                                              <p className="text-[9px] text-gray-500 dark:text-gray-400 italic mt-0.5 line-clamp-2">
-                                                "{h.reason}"
-                                              </p>
-                                            )}
-                                            <div className="flex items-center gap-1.5 mt-1">
-                                              <div className="w-3.5 h-3.5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[7px] font-bold text-gray-500">
-                                                {h.updatedBy?.fullName?.charAt(0) || 'S'}
-                                              </div>
-                                              <p className="text-[8px] font-bold text-gray-400">
-                                                {h.updatedBy?.fullName || 'System'}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                              )}
+                              {item.statusHistory?.length > 0 && (
+                                <button 
+                                  onClick={() => setViewingHistory(item._id)}
+                                  title="View Timeline"
+                                  className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                                >
+                                  <History className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {item.statusReason && (
+                            <p className="text-[10px] text-gray-400 italic px-2 max-w-[150px] truncate">"{item.statusReason}"</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-center font-bold text-gray-700 dark:text-gray-300">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-sm font-black">{item.quantity || 0} B + {item.pieces || 0} P</span>
+                          {(item.product?.pieces_per_box > 1) && (
+                            <span className="text-[10px] text-gray-400 font-medium">
+                              {item.product.pieces_per_box} Pieces/Box
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      {!hidePrice && (
+                        <td className="px-4 py-4 text-right text-gray-600 dark:text-gray-400">
+                          <div className="flex flex-col items-end">
+                            <span>₹{item.price.toLocaleString('en-IN')}</span>
+                            {(item.product?.pieces_per_box > 1 || item.pieces > 0) && (
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                ₹{(item.pricePerPiece || (item.price / (item.product?.pieces_per_box || 1))).toFixed(2)}/P
+                              </span>
                             )}
                           </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-center font-bold text-gray-700 dark:text-gray-300">{item.quantity}</td>
-                      <td className="px-4 py-4 text-right text-gray-600 dark:text-gray-400">₹{item.price.toLocaleString('en-IN')}</td>
-                      <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">₹{item.subtotal.toLocaleString('en-IN')}</td>
+                        </td>
+                      )}
+                      {!hidePrice && <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">₹{item.subtotal.toLocaleString('en-IN')}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -352,27 +356,31 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
               </p>
             </div>
             <div className="w-full md:w-72 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="font-bold text-gray-900 dark:text-white">₹{(sale.totalAmount - (sale.tax || 0) + (sale.discount || 0)).toLocaleString('en-IN')}</span>
-              </div>
-              {sale.tax > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Tax</span>
-                  <span className="font-bold text-green-600">+ ₹{sale.tax.toLocaleString('en-IN')}</span>
-                </div>
+              {!hidePrice && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="font-bold text-gray-900 dark:text-white">₹{(sale.totalAmount - (sale.tax || 0) + (sale.discount || 0)).toLocaleString('en-IN')}</span>
+                  </div>
+                  {!hideTax && sale.tax > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Tax</span>
+                      <span className="font-bold text-green-600">+ ₹{sale.tax.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {sale.discount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Discount</span>
+                      <span className="font-bold text-red-600">- ₹{sale.discount.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>
+                    <span className="text-2xl font-black text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                </>
               )}
-              {sale.discount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Discount</span>
-                  <span className="font-bold text-red-600">- ₹{sale.discount.toLocaleString('en-IN')}</span>
-                </div>
-              )}
-              <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>
-                <span className="text-2xl font-black text-primary-600">₹{sale.totalAmount.toLocaleString('en-IN')}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -381,6 +389,158 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
         <div className="p-6 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-800 text-center">
           <p className="text-xs text-gray-400 font-medium">Generated by Inventory Pro • Thank you for your business!</p>
         </div>
+
+        {/* --- POP-UP OVERLAYS --- */}
+        
+        {/* Status Edit Pop-up */}
+        {editingItem && (
+          <div className="absolute inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-gray-100 dark:border-gray-800 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-primary-600" /> Update Item Status
+                </h3>
+                <button onClick={() => setEditingItem(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl text-gray-400 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'isSample', label: 'Sample', Icon: Gift, color: 'text-green-600', bg: 'bg-green-50' },
+                    { id: 'isDamaged', label: 'Damaged', Icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
+                    { id: 'isWrongProduct', label: 'Wrong Item', Icon: Box, color: 'text-purple-600', bg: 'bg-purple-50' },
+                    { id: 'isExchange', label: 'Exchange', Icon: RefreshCw, color: 'text-blue-600', bg: 'bg-blue-50' },
+                  ].map(flag => (
+                    <button
+                      key={flag.id}
+                      onClick={() => setEditingItem({
+                        ...editingItem,
+                        data: {
+                          ...editingItem.data,
+                          isDamaged: flag.id === 'isDamaged' ? !editingItem.data.isDamaged : false,
+                          isSample: flag.id === 'isSample' ? !editingItem.data.isSample : false,
+                          isWrongProduct: flag.id === 'isWrongProduct' ? !editingItem.data.isWrongProduct : false,
+                          isExchange: flag.id === 'isExchange' ? !editingItem.data.isExchange : false,
+                        }
+                      })}
+                      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all ${editingItem.data[flag.id] ? 'border-primary-500 bg-primary-50/50 shadow-md ring-4 ring-primary-500/5' : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 text-gray-400'}`}
+                    >
+                      <flag.Icon className={`w-6 h-6 ${editingItem.data[flag.id] ? flag.color : ''}`} />
+                      <span className={`text-xs font-bold ${editingItem.data[flag.id] ? 'text-primary-700' : ''}`}>{flag.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Reason for status change</label>
+                  <div className="relative">
+                    <MessageSquare className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                    <textarea 
+                      placeholder="Explain why this status is being set..." 
+                      className="w-full text-sm pl-10 pr-4 py-3 rounded-2xl border-gray-100 dark:border-gray-700 dark:bg-gray-800 min-h-[100px] focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      value={editingItem.data.statusReason || ''}
+                      onChange={(e) => setEditingItem({...editingItem, data: { ...editingItem.data, statusReason: e.target.value }})}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => handleUpdateStatus(editingItem.id)}
+                    disabled={isSubmitting}
+                    className="flex-[2] bg-primary-600 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-200 dark:shadow-none hover:bg-primary-700 transition-all disabled:opacity-50"
+                  >
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                    Save Changes
+                  </button>
+                  <button 
+                    onClick={() => setEditingItem(null)}
+                    className="flex-1 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 py-3.5 rounded-2xl font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline Pop-up */}
+        {viewingHistory && (() => {
+          const item = sale.items.find(i => i._id === viewingHistory);
+          return (
+            <div className="absolute inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col max-h-[80vh] animate-in slide-in-from-bottom-4 duration-300">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <History className="w-5 h-5 text-indigo-600" /> Status Timeline
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest mt-0.5">{item?.name}</p>
+                  </div>
+                  <button onClick={() => setViewingHistory(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl text-gray-400 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  {item?.statusHistory?.length > 0 ? (
+                    <div className="space-y-8 relative">
+                      <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gray-100 dark:bg-gray-800" />
+                      
+                      {item.statusHistory.slice().reverse().map((h, i) => (
+                        <div key={i} className="relative pl-8 group">
+                          <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-4 border-white dark:border-gray-900 shadow-sm transition-all group-hover:scale-125 ${i === 0 ? 'bg-primary-600 ring-4 ring-primary-500/10' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                          <div className="bg-gray-50/50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 transition-all group-hover:shadow-md group-hover:bg-white dark:group-hover:bg-gray-800">
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                              <p className={`font-bold ${i === 0 ? 'text-primary-700 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                                {h.status}
+                              </p>
+                              <span className="text-[9px] font-bold text-gray-400 bg-white dark:bg-gray-900 px-2 py-1 rounded-lg border border-gray-100 dark:border-gray-800 shadow-sm">
+                                {formatDate(h.updatedAt)}
+                              </span>
+                            </div>
+                            {h.reason && (
+                              <div className="relative mb-3">
+                                <MessageSquare className="absolute -left-1 -top-1 w-3 h-3 text-gray-200" />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 italic pl-3">
+                                  "{h.reason}"
+                                </p>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-auto pt-2 border-t border-gray-100/50 dark:border-gray-700/50">
+                              <div className="w-6 h-6 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-[10px] font-black text-primary-600">
+                                {h.updatedBy?.fullName?.charAt(0) || 'S'}
+                              </div>
+                              <div className="flex flex-col">
+                                <p className="text-[10px] font-bold text-gray-900 dark:text-white">
+                                  {h.updatedBy?.fullName || 'System'}
+                                </p>
+                                <p className="text-[8px] text-gray-400 font-medium">Update performed</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <History className="w-12 h-12 text-gray-100 dark:text-gray-800 mx-auto mb-4" />
+                      <p className="text-gray-400 text-sm">No history records found for this item.</p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-800">
+                  <button onClick={() => setViewingHistory(null)} className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 py-3 rounded-2xl font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 transition-all">
+                    Close History
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -36,6 +36,11 @@ const settingSchema = new mongoose.Schema(
       inAppSaleAlerts: { type: Boolean, default: true },
       inAppStaffAlerts: { type: Boolean, default: true },
     },
+    privacy: {
+      hideStaffPriceDetails: { type: Boolean, default: true },
+      hideStaffTaxDetails: { type: Boolean, default: true },
+      hideStaffPaymentMethod: { type: Boolean, default: true },
+    },
   },
   {
     timestamps: true,

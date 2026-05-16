@@ -3,7 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
 
 import useThemeStore from './store/themeStore.js';
-import { ProtectedRoute, GuestRoute } from './components/auth/ProtectedRoute.jsx';
+import { ProtectedRoute, GuestRoute, RoleRoute } from './components/auth/ProtectedRoute.jsx';
 import AppLayout from './components/layout/AppLayout.jsx';
 import NetworkStatus from './components/layout/NetworkStatus.jsx';
 import Heartbeat from './components/auth/Heartbeat.jsx';
@@ -23,6 +23,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import EmployeeBehaviorPage from './pages/EmployeeBehaviorPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
+import StaffHomePage from './pages/StaffHomePage.jsx';
 
 export default function App() {
   const { theme } = useThemeStore();
@@ -61,7 +62,17 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <AppLayout><DashboardPage /></AppLayout>
+              <RoleRoute allowedRoles={['admin', 'manager']}>
+                <AppLayout><DashboardPage /></AppLayout>
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-home"
+          element={
+            <ProtectedRoute>
+              <AppLayout><StaffHomePage /></AppLayout>
             </ProtectedRoute>
           }
         />

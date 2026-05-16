@@ -87,10 +87,11 @@ export const generateInvoicePDF = (sale) => {
     doc.text(`Invoice #: ${sale.invoiceNumber}`, 140, 28);
     doc.text(`Date: ${date}`, 140, 33);
     doc.text(`Store: ${sale.storeId?.name || 'Main Branch'}`, 140, 38);
+    doc.text(`Payment: ${sale.paymentMethod || 'N/A'}`, 140, 43);
 
     // 2. Customer & Staff Details
     doc.setDrawColor(240);
-    doc.line(14, 45, 196, 45);
+    doc.line(14, 46, 196, 46);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -113,89 +114,99 @@ export const generateInvoicePDF = (sale) => {
     if (sale.soldBy?.phone) doc.text(`Mob: ${sale.soldBy.phone}`, 140, 70);
 
     // 3. Items Table
-    const tableData = sale.items.map(item => {
-      const statuses = [];
-      if (item.isDamaged) statuses.push('DAMAGED');
-      if (item.isExchange) statuses.push('EXCHANGE');
-      if (item.isWrongProduct) statuses.push('WRONG PROD');
-      if (item.isSample) statuses.push('SAMPLE');
+    const tableData = sale.items.map((item, index) => {
+      // Determine pieces_per_box and weight from item or fall back to product (for old sales)
+      const ppb = item.product?.pieces_per_box || 1;
+      const weightPerBox = item.product?.weight_of_box || 0;
+      const calculatedWeight = item.weight || ( (item.quantity * weightPerBox) + (item.pieces * (weightPerBox / ppb)) );
+      const calculatedPricePerPiece = item.pricePerPiece || (item.price / ppb);
+
+      // Determine the display status
+      let displayStatus = 'Selling';
+      if (item.isDamaged) displayStatus = 'DAMAGED';
+      else if (item.isExchange) displayStatus = 'EXCHANGE';
+      else if (item.isWrongProduct) displayStatus = 'WRONG PROD';
+      else if (item.isSample) displayStatus = 'SAMPLE';
       
-      const statusText = statuses.length > 0 ? ` (${statuses.join(', ')})` : '';
-      const skuText = item.product?.sku ? ` [SKU: ${item.product.sku}]` : '';
-      const brandText = item.product?.brand ? ` | Brand: ${item.product.brand}` : '';
-      const categoryText = item.product?.category?.name ? ` | Category: ${item.product.category.name}` : '';
+      const statusText = `\nStatus: ${displayStatus}`;
+      const skuText = item.product?.sku ? `\n[SKU: ${item.product.sku}]` : '';
+      const weightText = calculatedWeight > 0 ? `\nWeight: ${calculatedWeight.toFixed(2)} KG` : '';
+      const productDesc = `${item.name}${skuText}${statusText}${weightText}`;
+
+      const showPiecePrice = ppb > 1;
+      const qtyText = `${item.quantity || 0} B + ${item.pieces || 0} P${showPiecePrice ? `\n(${ppb} P/Box)` : ''}`;
 
       return [
-        '', // Color indicator placeholder
-        `${item.name}${skuText}${statusText}${brandText}${categoryText}`,
-        `${item.price.toLocaleString('en-IN')}`,
-        item.quantity,
-        `${item.subtotal.toLocaleString('en-IN')}`
+        index + 1,
+        productDesc,
+        item.product?.dimensions || '—',
+        { content: qtyText, styles: { fontStyle: 'bold', halign: 'center' } },
+        `Rs. ${item.price.toLocaleString('en-IN')}${showPiecePrice ? `\n(Rs. ${calculatedPricePerPiece.toFixed(2)}/P)` : ''}`,
+        `Rs. ${item.subtotal.toLocaleString('en-IN')}`
       ];
     });
 
     autoTable(doc, {
       startY: 80,
-      head: [['', 'Product Description', 'Price (Rs.)', 'Qty', 'Total (Rs.)']],
+      head: [['#', 'Product Description', 'Dim.', 'Qty', 'Price', 'Total']],
       body: tableData,
       headStyles: { fillColor: [99, 102, 241], fontSize: 10, halign: 'center' },
       columnStyles: {
-        0: { cellWidth: 8 }, // Color box
-        1: { cellWidth: 82 },
-        2: { halign: 'right' },
-        3: { halign: 'center' },
-        4: { halign: 'right' }
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'left', cellWidth: 70 },
+        2: { halign: 'center', cellWidth: 20 },
+        3: { halign: 'center', cellWidth: 25 },
+        4: { halign: 'right', cellWidth: 35 },
+        5: { halign: 'right', cellWidth: 30 }
       },
-      styles: { fontSize: 9, font: 'helvetica' },
-      theme: 'striped',
-      didDrawCell: (data) => {
-        if (data.section === 'body' && data.column.index === 0) {
-          const item = sale.items[data.row.index];
-          const color = item.product?.color || '#3b82f6';
-          
-          // Draw a small rounded color box
-          const r = parseInt(color.slice(1, 3), 16);
-          const g = parseInt(color.slice(3, 5), 16);
-          const b = parseInt(color.slice(5, 7), 16);
-          
-          doc.setFillColor(r, g, b);
-          doc.roundedRect(data.cell.x + 2, data.cell.y + 2, 4, 4, 1, 1, 'F');
-        }
-      },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 1) {
-          if (data.cell.raw.includes('(')) {
-            data.cell.styles.textColor = [220, 38, 38]; // Red for alert statuses
-          }
-        }
-      }
+      styles: { fontSize: 9, font: 'helvetica', cellPadding: 3 },
+      theme: 'striped'
     });
 
-    // 4. Totals
-    const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 150;
+    // 4. Totals & Transporter Details
     const rightEdge = 196;
     const labelX = 140;
-    
+    let finalY = doc.lastAutoTable.finalY + 10;
+
+    // Calculate dynamic total weight from the processed rows to ensure consistency
+    const grandTotalWeight = tableData.reduce((sum, row) => {
+      const weightMatch = row[1].match(/Weight: ([\d.]+) KG/);
+      return sum + (weightMatch ? parseFloat(weightMatch[1]) : 0);
+    }, 0);
+
+    // Add Transporter Info if available
+    if (sale.transporter?.name) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TRANSPORTER / DELIVERY DETAILS', 14, finalY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Driver Name: ${sale.transporter.name}`, 14, finalY + 6);
+      doc.text(`Mobile: ${sale.transporter.mobile || 'N/A'}`, 14, finalY + 11);
+      doc.text(`Vehicle: ${sale.transporter.vehicleType || 'N/A'} (${sale.transporter.vehicleNumber || 'N/A'})`, 14, finalY + 16);
+      if (grandTotalWeight > 0) {
+        doc.text(`Total Weight: ${grandTotalWeight.toFixed(2)} KG`, 14, finalY + 21);
+      }
+    }
+
+    const totalsStartX = 140;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    
-    // Subtotal
-    doc.text('Subtotal:', labelX, finalY);
-    doc.text(`${(sale.totalAmount - (sale.tax || 0) + (sale.discount || 0)).toLocaleString('en-IN')}`, rightEdge, finalY, { align: 'right' });
+    doc.text('Subtotal:', totalsStartX, doc.lastAutoTable.finalY + 10);
+    doc.text(`Rs. ${(sale.totalAmount - (sale.tax || 0) + (sale.discount || 0)).toLocaleString('en-IN')}`, 196, doc.lastAutoTable.finalY + 10, { align: 'right' });
 
-    let currentY = finalY;
+    let currentY = doc.lastAutoTable.finalY + 10;
 
     if (sale.tax > 0) {
       currentY += 6;
-      doc.text('Tax:', labelX, currentY);
-      doc.text(`+ ${sale.tax.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
+      doc.text('Tax:', totalsStartX, currentY);
+      doc.text(`+ Rs. ${sale.tax.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
     }
 
     if (sale.discount > 0) {
       currentY += 6;
-      doc.text('Discount:', labelX, currentY);
-      doc.text(`- ${sale.discount.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
+      doc.text('Discount:', totalsStartX, currentY);
+      doc.text(`- Rs. ${sale.discount.toLocaleString('en-IN')}`, rightEdge, currentY, { align: 'right' });
     }
 
     // Total Amount
