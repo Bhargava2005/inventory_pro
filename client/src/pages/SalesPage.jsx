@@ -141,7 +141,7 @@ export default function SalesPage() {
           className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-sm font-semibold"
         >
           <ArrowLeft size={16} />
-          New Sale
+          New Voucher
         </button>
         <h1 className="text-lg font-bold text-gray-900 dark:text-white">Sales History</h1>
       </div>

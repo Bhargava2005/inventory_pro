@@ -10,6 +10,8 @@ const useCartStore = create(
       discountRate: 0,
       paymentMethod: 'cash',
       transporter: { name: '', mobile: '', vehicleType: '', vehicleNumber: '' },
+      voucherType: null,
+      ref: '',
 
       setCart: (updater) => {
         if (typeof updater === 'function') {
@@ -24,6 +26,8 @@ const useCartStore = create(
       setDiscountRate: (discountRate) => set({ discountRate }),
       setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
       setTransporter: (transporter) => set({ transporter }),
+      setVoucherType: (voucherType) => set({ voucherType }),
+      setRef: (ref) => set({ ref }),
 
       removeFromCart: (id) => set((state) => ({
         cart: state.cart.filter(item => item.product !== id)
@@ -94,6 +98,8 @@ const useCartStore = create(
         customer: { name: '', phone: '', companyName: '', addressLine: '' },
         discountRate: 0,
         transporter: { name: '', mobile: '', vehicleType: '', vehicleNumber: '' },
+        voucherType: null,
+        ref: '',
         // We don't reset taxRate here because it usually comes from settings
       }),
     }),

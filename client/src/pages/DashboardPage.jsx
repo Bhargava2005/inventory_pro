@@ -303,7 +303,7 @@ export default function DashboardPage() {
           className="btn-primary py-3.5 flex flex-col items-center justify-center gap-1.5 h-auto rounded-2xl"
         >
           <ShoppingCart className="w-5 h-5" />
-          <span className="text-xs font-semibold">New Sale</span>
+          <span className="text-xs font-semibold">New Voucher</span>
         </button>
         <button
           onClick={() => navigate('/products')}

@@ -1,14 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const getLocalDateString = (d = new Date()) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const useAnalyticsStore = create(
   persist(
     (set) => ({
       activePreset: 'today',
       activeResultTab: 'product',
       dateRange: {
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
+        startDate: getLocalDateString(),
+        endDate: getLocalDateString(),
       },
       selectedBranch: '',
       selectedCategory: '',
@@ -42,8 +49,8 @@ const useAnalyticsStore = create(
       resetFilters: () => set({
         activePreset: 'today',
         dateRange: {
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0],
+          startDate: getLocalDateString(),
+          endDate: getLocalDateString(),
         },
         selectedBranch: '',
         selectedCategory: '',

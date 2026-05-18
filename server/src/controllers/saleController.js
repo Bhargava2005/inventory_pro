@@ -50,14 +50,12 @@ export const createSale = async (req, res, next) => {
         throw new Error(`Cannot sell 0 quantity for ${product.name}`);
       }
 
-      // Validate box stock
-      if (product.quantity < boxes) {
-        throw new Error(`Insufficient box stock for ${product.name}. Available: ${product.quantity} boxes`);
-      }
+      // Validate total stock (boxes + pieces)
+      const totalPiecesRequested = (boxes * piecesPerBox) + pieces;
+      const totalPiecesAvailable = (product.quantity * piecesPerBox) + product.ava_pieces;
 
-      // Validate piece stock
-      if (pieces > 0 && product.ava_pieces < pieces) {
-        throw new Error(`Insufficient loose pieces for ${product.name}. Available: ${product.ava_pieces} pieces`);
+      if (totalPiecesAvailable < totalPiecesRequested) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity} boxes, ${product.ava_pieces} loose pieces.`);
       }
 
       // Decrement box stock

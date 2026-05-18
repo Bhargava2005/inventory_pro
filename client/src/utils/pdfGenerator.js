@@ -67,6 +67,27 @@ export const generateInvoicePDF = (sale, options = {}) => {
     const doc = jsPDF();
     const date = new Date(sale.createdAt).toLocaleDateString();
 
+    // Determine if all items have the same status
+    const itemStatuses = sale.items.map(item => {
+      if (item.isDamaged) return 'DAMAGED';
+      if (item.isExchange) return 'EXCHANGE';
+      if (item.isWrongProduct) return 'WRONG PROD';
+      if (item.isSample) return 'SAMPLE';
+      return 'Selling';
+    });
+    const uniqueStatuses = [...new Set(itemStatuses)];
+    const hasSameStatus = uniqueStatuses.length === 1;
+    const commonStatusRaw = hasSameStatus ? uniqueStatuses[0] : null;
+
+    const statusMap = {
+      'Selling': 'Selling',
+      'DAMAGED': 'Damaged',
+      'EXCHANGE': 'Exchange',
+      'WRONG PROD': 'Wrong Product',
+      'SAMPLE': 'Sample'
+    };
+    const commonStatus = commonStatusRaw ? statusMap[commonStatusRaw] : null;
+
     // 1. Header & Branding
     doc.setFontSize(22);
     doc.setTextColor(99, 102, 241); // Primary Indigo
@@ -89,17 +110,21 @@ export const generateInvoicePDF = (sale, options = {}) => {
     doc.text(`Date: ${date}`, 140, 33);
     doc.text(`Store: ${sale.storeId?.name || 'Main Branch'}`, 140, 38);
     doc.text(`Payment: ${hidePaymentMethod ? '***' : sale.paymentMethod || 'N/A'}`, 140, 43);
+    if (hasSameStatus && commonStatus) {
+      doc.text(`Voucher Type: ${commonStatus}`, 140, 48);
+    }
 
     // 2. Customer & Staff Details
     doc.setDrawColor(240);
-    doc.line(14, 46, 196, 46);
+    const lineY = hasSameStatus ? 51 : 46;
+    doc.line(14, lineY, 196, lineY);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('BILL TO:', 14, 55);
+    doc.text('BILL TO:', 14, lineY + 9);
     doc.setFont('helvetica', 'normal');
-    doc.text(sale.customer?.name || 'Walk-in Customer', 14, 60);
-    let billY = 65;
+    doc.text(sale.customer?.name || 'Walk-in Customer', 14, lineY + 14);
+    let billY = lineY + 19;
     if (sale.customer?.companyName) {
       doc.text(`Co.: ${sale.customer.companyName}`, 14, billY);
       billY += 5;
@@ -108,11 +133,11 @@ export const generateInvoicePDF = (sale, options = {}) => {
     if (sale.customer?.addressLine) { doc.text(`Addr: ${sale.customer.addressLine}`, 14, billY); }
 
     doc.setFont('helvetica', 'bold');
-    doc.text('SOLD BY:', 140, 55);
+    doc.text('SOLD BY:', 140, lineY + 9);
     doc.setFont('helvetica', 'normal');
-    doc.text(sale.soldBy?.fullName || 'Staff Member', 140, 60);
-    if (sale.soldBy?.username) doc.text(`ID: ${sale.soldBy.username}`, 140, 65);
-    if (sale.soldBy?.phone) doc.text(`Mob: ${sale.soldBy.phone}`, 140, 70);
+    doc.text(sale.soldBy?.fullName || 'Staff Member', 140, lineY + 14);
+    if (sale.soldBy?.username) doc.text(`ID: ${sale.soldBy.username}`, 140, lineY + 19);
+    if (sale.soldBy?.phone) doc.text(`Mob: ${sale.soldBy.phone}`, 140, lineY + 24);
 
     // 3. Items Table
     const tableData = sale.items.map((item, index) => {
@@ -129,13 +154,15 @@ export const generateInvoicePDF = (sale, options = {}) => {
       else if (item.isWrongProduct) displayStatus = 'WRONG PROD';
       else if (item.isSample) displayStatus = 'SAMPLE';
       
-      const statusText = `\nStatus: ${displayStatus}`;
+      const statusText = hasSameStatus ? '' : `\nStatus: ${displayStatus}`;
       const skuText = item.product?.sku ? `\n[SKU: ${item.product.sku}]` : '';
       const weightText = calculatedWeight > 0 ? `\nWeight: ${calculatedWeight.toFixed(2)} KG` : '';
       const productDesc = `${item.name}${skuText}${statusText}${weightText}`;
 
       const showPiecePrice = ppb > 1;
-      const qtyText = `${item.quantity || 0} B + ${item.pieces || 0} P${showPiecePrice ? `\n(${ppb} P/Box)` : ''}`;
+      const boxesLabel = item.quantity === 1 ? 'box' : 'boxes';
+      const piecesLabel = item.pieces === 1 ? 'piece' : 'pieces';
+      const qtyText = `${item.quantity || 0} ${boxesLabel}\n${item.pieces || 0} ${piecesLabel}${showPiecePrice ? `\n(${ppb} pieces/box)` : ''}`;
 
       return [
         index + 1,
@@ -147,8 +174,10 @@ export const generateInvoicePDF = (sale, options = {}) => {
       ];
     });
 
+    const startTableY = hasSameStatus ? 85 : 80;
+
     autoTable(doc, {
-      startY: 80,
+      startY: startTableY,
       head: [['#', 'Product Description', 'Dim.', 'Qty', 'Price', 'Total']],
       body: tableData,
       headStyles: { fillColor: [99, 102, 241], fontSize: 10, halign: 'center' },

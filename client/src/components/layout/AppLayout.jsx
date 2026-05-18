@@ -16,7 +16,7 @@ import useNotificationStore from '../../store/notificationStore.js';
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', shortLabel: 'Home', roles: ['admin', 'manager'], mobileNav: true },
   { to: '/staff-home', icon: LayoutDashboard, label: 'Home', shortLabel: 'Home', roles: ['staff'], mobileNav: true },
-  { to: '/pos', icon: ShoppingCart, label: 'New Sale', shortLabel: 'Sale', mobileNav: true },
+  { to: '/pos', icon: ShoppingCart, label: 'New Voucher', shortLabel: 'Voucher', mobileNav: true },
   { to: '/users', icon: ShieldCheck, label: 'Staff Management', shortLabel: 'Staff', roles: ['admin', 'manager'], mobileNav: true },
   { to: '/analytics', icon: BarChart3, label: 'Sales Analytics', shortLabel: 'Analytics', roles: ['admin', 'manager', 'staff'], mobileNav: true },
   { to: '/products', icon: Package, label: 'Inventory Management', shortLabel: 'Inventory', roles: ['admin', 'manager'], mobileNav: true },

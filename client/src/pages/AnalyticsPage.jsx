@@ -26,7 +26,13 @@ const DATE_PRESETS = [
 
 function getPresetDates(key) {
   const now = new Date();
-  const fmt = (d) => d.toISOString().split('T')[0];
+  const fmt = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   if (key === 'today') return { startDate: fmt(now), endDate: fmt(now) };
   if (key === 'week') {
     const s = new Date(now); s.setDate(s.getDate() - s.getDay());
@@ -69,8 +75,15 @@ export default function AnalyticsPage() {
   const [showDownloadModal, setShowDownloadModal] = useState(null); 
 
   useEffect(() => {
-    if (user?.role === 'admin') fetchBranches();
+    if (user?.role !== 'admin') {
+      setSelectedBranch('');
+    } else {
+      fetchBranches();
+    }
     fetchCategories();
+  }, [user]);
+
+  useEffect(() => {
     fetchBrands(selectedBranch ? { branchId: selectedBranch } : {});
   }, [selectedBranch]);
 

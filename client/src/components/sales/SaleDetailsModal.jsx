@@ -4,12 +4,14 @@ import { generateInvoicePDF } from '../../utils/pdfGenerator.js';
 import useSaleStore from '../../store/saleStore.js';
 import useAuthStore from '../../store/authStore.js';
 import useSettingsStore from '../../store/settingsStore.js';
+import useProductStore from '../../store/productStore.js';
 import toast from 'react-hot-toast';
 
 export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   const { updateSaleItem, isSubmitting } = useSaleStore();
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
+  const { fetchProducts } = useProductStore();
   const [sale, setSale] = useState(initialSale);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editingItem, setEditingItem] = useState(null); // { id, ...data }
@@ -43,6 +45,8 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
       setSale(res.data);
       setEditingItem(null);
       toast.success('Item status updated');
+      // Sync updated stock back to frontend after return/exchange
+      fetchProducts();
     } else {
       toast.error(res.message);
     }

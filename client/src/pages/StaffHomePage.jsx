@@ -69,7 +69,7 @@ export default function StaffHomePage() {
             <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 mb-6">
               <ShoppingCart className="w-7 h-7" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">New Sale (POS)</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">New Voucher (POS)</h2>
             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-6">
               Start a new transaction and process payments quickly.
             </p>
