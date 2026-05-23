@@ -290,14 +290,19 @@ export const getAnalysisData = async (req, res, next) => {
         $group: {
           _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
           totalSales: { $sum: '$items.subtotal' },
-          salesCount: { $sum: '$items.quantity' },
+          unitSalesCount: { $sum: '$items.quantity' },
+          pieceSalesCount: { $sum: '$items.pieces' },
           sampleCount: { $sum: { $cond: ['$items.isSample', '$items.quantity', 0] } },
           damagedCount: { $sum: { $cond: ['$items.isDamaged', '$items.quantity', 0] } },
           exchangeCount: { $sum: { $cond: ['$items.isExchange', '$items.quantity', 0] } },
           wrongProductCount: { $sum: { $cond: ['$items.isWrongProduct', '$items.quantity', 0] } },
         }
       },
-      { $sort: { _id: 1 } },
+      { 
+        $sort: { 
+          [sortByField === 'name' || sortByField === 'sku' ? '_id' : sortByField]: parseInt(sortByDir) || -1 
+        } 
+      },
       {
         $facet: {
           metadata: [{ $count: 'total' }],
@@ -315,7 +320,8 @@ export const getAnalysisData = async (req, res, next) => {
           name: { $first: '$items.name' },
           sku: { $first: '$productInfo.sku' },
           totalSales: { $sum: '$items.subtotal' },
-          salesCount: { $sum: '$items.quantity' },
+          unitSalesCount: { $sum: '$items.quantity' },
+          pieceSalesCount: { $sum: '$items.pieces' },
           sampleCount: { $sum: { $cond: ['$items.isSample', '$items.quantity', 0] } },
           damagedCount: { $sum: { $cond: ['$items.isDamaged', '$items.quantity', 0] } },
           exchangeCount: { $sum: { $cond: ['$items.isExchange', '$items.quantity', 0] } },
@@ -344,7 +350,9 @@ export const getAnalysisData = async (req, res, next) => {
         timeTotal,
         productTotal,
         page: parseInt(page),
-        totalPages: Math.ceil((req.query.activeTab === 'time' ? timeTotal : productTotal) / limit)
+        totalPages: Math.ceil((req.query.activeTab === 'time' ? timeTotal : productTotal) / limit),
+        unitSalesCountTotal: productData.reduce((acc, curr) => acc + (curr.unitSalesCount || 0), 0),
+        pieceSalesCountTotal: productData.reduce((acc, curr) => acc + (curr.pieceSalesCount || 0), 0)
       }
     });
   } catch (error) {
@@ -383,7 +391,8 @@ export const exportAnalysisExcel = async (req, res, next) => {
 
     const { 
       categoryId, brand, search, productIds, groupBy = 'day',
-      transactionType = 'all', sortByField = 'salesCount', sortByDir = -1
+      transactionType = 'all', sortByField = 'salesCount', sortByDir = -1,
+      includeTime = 'true', includeProduct = 'true'
     } = req.query;
     const baseMatch = { ...query };
     
@@ -472,14 +481,19 @@ export const exportAnalysisExcel = async (req, res, next) => {
           $group: {
             _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
             totalSales: { $sum: '$items.subtotal' },
-            salesCount: { $sum: '$items.quantity' },
+            unitSalesCount: { $sum: '$items.quantity' },
+            pieceSalesCount: { $sum: '$items.pieces' },
             sampleCount: { $sum: { $cond: ['$items.isSample', '$items.quantity', 0] } },
             damagedCount: { $sum: { $cond: ['$items.isDamaged', '$items.quantity', 0] } },
             exchangeCount: { $sum: { $cond: ['$items.isExchange', '$items.quantity', 0] } },
             wrongProductCount: { $sum: { $cond: ['$items.isWrongProduct', '$items.quantity', 0] } },
           }
         },
-        { $sort: { _id: 1 } }
+        { 
+          $sort: { 
+            [sortByField === 'name' || sortByField === 'sku' ? '_id' : sortByField]: parseInt(sortByDir) || -1 
+          } 
+        }
       ]),
       Sale.aggregate([
         ...productPipeline,
@@ -488,7 +502,8 @@ export const exportAnalysisExcel = async (req, res, next) => {
             _id: '$items.product',
             name: { $first: '$items.name' },
             sku: { $first: '$productInfo.sku' },
-            salesCount: { $sum: '$items.quantity' },
+            unitSalesCount: { $sum: '$items.quantity' },
+            pieceSalesCount: { $sum: '$items.pieces' },
             totalSales: { $sum: '$items.subtotal' },
             sampleCount: { $sum: { $cond: ['$items.isSample', '$items.quantity', 0] } },
             damagedCount: { $sum: { $cond: ['$items.isDamaged', '$items.quantity', 0] } },
@@ -503,52 +518,60 @@ export const exportAnalysisExcel = async (req, res, next) => {
     const workbook = new ExcelJS.Workbook();
     
     // Sheet 1: Time Analysis
-    const timeSheet = workbook.addWorksheet('Time Analysis');
-    timeSheet.columns = [
-      { header: 'Date', key: 'date', width: 15 },
-      { header: 'Items Sold', key: 'salesCount', width: 12 },
-      { header: 'Revenue', key: 'totalSales', width: 15 },
-      { header: 'Samples', key: 'sampleCount', width: 12 },
-      { header: 'Damages', key: 'damagedCount', width: 12 },
-      { header: 'Exchanges', key: 'exchangeCount', width: 12 },
-      { header: 'Wrong Deliveries', key: 'wrongProductCount', width: 18 },
-    ];
-    timeSheet.getRow(1).font = { bold: true };
-    timeData.forEach(d => {
-      timeSheet.addRow({
-        date: d._id,
-        salesCount: d.salesCount,
-        totalSales: d.totalSales,
-        sampleCount: d.sampleCount,
-        damagedCount: d.damagedCount,
-        exchangeCount: d.exchangeCount,
-        wrongProductCount: d.wrongProductCount,
+    if (includeTime === 'true') {
+      const timeSheet = workbook.addWorksheet('Time Analysis');
+      timeSheet.columns = [
+        { header: 'Date', key: 'date', width: 15 },
+        { header: 'Units Sold', key: 'unitSalesCount', width: 12 },
+        { header: 'Pieces Sold', key: 'pieceSalesCount', width: 12 },
+        { header: 'Revenue', key: 'totalSales', width: 15 },
+        { header: 'Samples', key: 'sampleCount', width: 12 },
+        { header: 'Damages', key: 'damagedCount', width: 12 },
+        { header: 'Exchanges', key: 'exchangeCount', width: 12 },
+        { header: 'Wrong Deliveries', key: 'wrongProductCount', width: 18 },
+      ];
+      timeSheet.getRow(1).font = { bold: true };
+      timeData.forEach(d => {
+        timeSheet.addRow({
+          date: d._id,
+          unitSalesCount: d.unitSalesCount,
+          pieceSalesCount: d.pieceSalesCount,
+          totalSales: d.totalSales,
+          sampleCount: d.sampleCount,
+          damagedCount: d.damagedCount,
+          exchangeCount: d.exchangeCount,
+          wrongProductCount: d.wrongProductCount,
+        });
       });
-    });
+    }
 
     // Sheet 2: Product Analysis
-    const productSheet = workbook.addWorksheet('Product Analysis');
-    productSheet.columns = [
-      { header: 'Product Name', key: 'name', width: 30 },
-      { header: 'Items Sold', key: 'salesCount', width: 12 },
-      { header: 'Revenue', key: 'totalSales', width: 15 },
-      { header: 'Samples', key: 'sampleCount', width: 12 },
-      { header: 'Damages', key: 'damagedCount', width: 12 },
-      { header: 'Exchanges', key: 'exchangeCount', width: 12 },
-      { header: 'Wrong Deliveries', key: 'wrongProductCount', width: 18 },
-    ];
-    productSheet.getRow(1).font = { bold: true };
-    productData.forEach(d => {
-      productSheet.addRow({
-        name: d.name || 'Unknown Product',
-        salesCount: d.salesCount,
-        totalSales: d.totalSales,
-        sampleCount: d.sampleCount,
-        damagedCount: d.damagedCount,
-        exchangeCount: d.exchangeCount,
-        wrongProductCount: d.wrongProductCount,
+    if (includeProduct === 'true') {
+      const productSheet = workbook.addWorksheet('Product Analysis');
+      productSheet.columns = [
+        { header: 'Product Name', key: 'name', width: 30 },
+        { header: 'Units Sold', key: 'unitSalesCount', width: 12 },
+        { header: 'Pieces Sold', key: 'pieceSalesCount', width: 12 },
+        { header: 'Revenue', key: 'totalSales', width: 15 },
+        { header: 'Samples', key: 'sampleCount', width: 12 },
+        { header: 'Damages', key: 'damagedCount', width: 12 },
+        { header: 'Exchanges', key: 'exchangeCount', width: 12 },
+        { header: 'Wrong Deliveries', key: 'wrongProductCount', width: 18 },
+      ];
+      productSheet.getRow(1).font = { bold: true };
+      productData.forEach(d => {
+        productSheet.addRow({
+          name: d.name || 'Unknown Product',
+          unitSalesCount: d.unitSalesCount,
+          pieceSalesCount: d.pieceSalesCount,
+          totalSales: d.totalSales,
+          sampleCount: d.sampleCount,
+          damagedCount: d.damagedCount,
+          exchangeCount: d.exchangeCount,
+          wrongProductCount: d.wrongProductCount,
+        });
       });
-    });
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=comprehensive_analysis.xlsx');

@@ -19,7 +19,7 @@ export const getStores = async (req, res, next) => {
 
 // @desc    Get single store
 // @route   GET /api/stores/:id
-// @access  Private
+// @access  PrivateTO DAY 
 export const getStore = async (req, res, next) => {
   try {
     const store = await Store.findById(req.params.id).populate('manager', 'fullName email');

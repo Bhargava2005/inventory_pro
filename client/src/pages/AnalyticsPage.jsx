@@ -147,30 +147,26 @@ export default function AnalyticsPage() {
     }
   };
 
-  const getFileName = (ext) => {
+  const getFileName = (ext, flavor = '') => {
     const date = new Date().toISOString().split('T')[0];
     const time = new Date().toLocaleTimeString('en-IN', { hour12: false }).replace(/:/g, '-');
+    let base = `report_${date}_${time}`;
     if (selectedProducts.length === 1) {
       const pName = analysisData?.productAnalysis?.find(p => p._id === selectedProducts[0])?.name || 'Item';
-      return `product_${pName.replace(/\s+/g, '_')}_${date}.${ext}`;
+      base = `product_${pName.replace(/\s+/g, '_')}_${date}`;
     } else if (selectedProducts.length > 1) {
-      return `multi_product_audit_${date}.${ext}`;
+      base = `multi_product_audit_${date}`;
     } else if (selectedBrand) {
-      return `brand_${selectedBrand.replace(/\s+/g, '_')}_${date}.${ext}`;
+      base = `brand_${selectedBrand.replace(/\s+/g, '_')}_${date}`;
     }
-    return `report_${date}_${time}.${ext}`;
+    return flavor ? `${base}_${flavor}.${ext}` : `${base}.${ext}`;
   };
 
   const handleExportClick = (type) => {
-    if (selectedProducts.length === 0 && !searchTerm) {
-      setShowDownloadModal(type);
-    } else {
-      if (type === 'excel') executeExcelExport(selectedProducts.length > 0 || !!searchTerm);
-      else executePdfExport(selectedProducts.length > 0 || !!searchTerm);
-    }
+    setShowDownloadModal(type);
   };
 
-  const executeExcelExport = async (includeProducts) => {
+  const executeExcelExport = async (includeTime, includeProduct) => {
     setIsExporting(true);
     try {
       const params = { 
@@ -182,19 +178,22 @@ export default function AnalyticsPage() {
         productIds: selectedProducts,
         groupBy: groupBy,
         transactionType: transactionType,
-        sortByField: sortBy.field,
-        sortByDir: sortBy.direction
+        sortByField: sortBy.field === 'salesCount' ? 'unitSalesCount' : sortBy.field,
+        sortByDir: sortBy.direction,
+        includeTime: !!includeTime,
+        includeProduct: !!includeProduct
       };
       const response = await reportAPI.getAnalysisExport(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', getFileName('xlsx'));
+      link.setAttribute('download', getFileName('xlsx', includeTime && includeProduct ? 'dual' : includeTime ? 'time' : 'product'));
       document.body.appendChild(link);
       link.click();
       link.remove();
       toast.success('Excel report downloaded');
     } catch (error) {
+      console.error(error);
       toast.error('Failed to export Excel');
     } finally {
       setIsExporting(false);
@@ -202,18 +201,15 @@ export default function AnalyticsPage() {
     }
   };
 
-  const executePdfExport = (includeProducts) => {
+  const executePdfExport = (includeTime, includeProduct) => {
     if (!analysisData) return;
     
     const doc = new jsPDF();
-    const allProducts = analysisData.productAnalysis;
+    const { productAnalysis, timeAnalysis } = analysisData;
     const filteredProducts = selectedProducts.length > 0 
-      ? allProducts.filter(p => selectedProducts.includes(p._id))
-      : allProducts;
-    const { timeAnalysis } = analysisData;
+      ? productAnalysis.filter(p => selectedProducts.includes(p._id))
+      : productAnalysis;
     
-    const showSpecific = selectedProducts.length > 0 || !!searchTerm;
-
     const branchName = branches.find(b => b._id === selectedBranch)?.name || 'All Branches';
     const categoryName = categories.find(c => c._id === selectedCategory)?.name || 'All Categories';
     const brandName = selectedBrand || 'All Brands';
@@ -248,9 +244,9 @@ export default function AnalyticsPage() {
       doc.text(`Summary by ${groupLabel}`, 15, y);
       autoTable(doc, {
         startY: y + 5,
-        head: [[groupLabel === 'Daily' ? 'Date' : 'Period', 'Sold', ...(!hidePrice ? ['Revenue'] : []), 'Samples', 'Damages', 'Exchanges', 'Wrong']],
+        head: [[groupLabel === 'Daily' ? 'Date' : 'Period', 'Unit Sold', 'Piece Sold', ...(!hidePrice ? ['Revenue'] : []), 'Samples', 'Damages', 'Exchanges', 'Wrong']],
         body: timeAnalysis.map(d => [
-          d._id, d.salesCount, ...(!hidePrice ? [`Rs. ${d.totalSales.toLocaleString('en-IN')}`] : []),
+          d._id, d.unitSalesCount || 0, d.pieceSalesCount || 0, ...(!hidePrice ? [`Rs. ${d.totalSales.toLocaleString('en-IN')}`] : []),
           d.sampleCount, d.damagedCount, d.exchangeCount, d.wrongProductCount
         ]),
         headStyles: { fillColor: [99, 102, 241] },
@@ -266,9 +262,9 @@ export default function AnalyticsPage() {
       doc.text('Product Performance', 15, y);
       autoTable(doc, {
         startY: y + 5,
-        head: [['SKU', 'Brand', 'Product Name', 'Sold', ...(!hidePrice ? ['Revenue'] : []), 'Samples', 'Damages', 'Exchanges', 'Wrong']],
+        head: [['SKU', 'Brand', 'Product Name', 'Unit Sold', 'Piece Sold', ...(!hidePrice ? ['Revenue'] : []), 'Samples', 'Damages', 'Exchanges', 'Wrong']],
         body: filteredProducts.map(d => [
-          d.sku || 'N/A', d.brand || '—', d.name || d._id, d.salesCount, ...(!hidePrice ? [`Rs. ${d.totalSales.toLocaleString('en-IN')}`] : []),
+          d.sku || 'N/A', d.brand || '—', d.name || d._id, d.unitSalesCount || 0, d.pieceSalesCount || 0, ...(!hidePrice ? [`Rs. ${d.totalSales.toLocaleString('en-IN')}`] : []),
           d.sampleCount, d.damagedStock || d.damagedCount || 0, d.exchangedStock || d.exchangeCount || 0, d.wrongProductStock || d.wrongProductCount || 0
         ]),
         headStyles: { fillColor: [79, 70, 229] },
@@ -278,20 +274,12 @@ export default function AnalyticsPage() {
       return doc.lastAutoTable.finalY;
     };
 
-    // Ordering logic
-    if (showSpecific) {
-      const firstProductName = filteredProducts[0]?.name || selectedProducts[0];
-      let title = selectedProducts.length === 1 ? `Audit: ${firstProductName}` : 'Specific Product Audit';
-      addHeader(title);
-      let nextY = renderProductTable(60);
-      renderTimeTable(nextY + 15);
-    } else {
-      addHeader('Business Performance Report');
-      let nextY = renderTimeTable(60);
-      if (includeProducts) renderProductTable(nextY + 15);
-    }
+    addHeader('Business Performance Report');
+    let nextY = 60;
+    if (includeProduct) nextY = renderProductTable(nextY) + 15;
+    if (includeTime) renderTimeTable(nextY);
     
-    doc.save(getFileName('pdf'));
+    doc.save(getFileName('pdf', includeTime && includeProduct ? 'dual' : includeTime ? 'time' : 'product'));
     toast.success('PDF report downloaded');
     setShowDownloadModal(null);
   };
@@ -477,21 +465,49 @@ export default function AnalyticsPage() {
 
       {showDownloadModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-slide-up relative p-8 text-center">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-slide-up relative p-8">
               <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6"><Download className="w-8 h-8" /></div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Export Analysis</h3>
-              <p className="text-gray-500 text-sm mb-8">Choose the detail level for your business report.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center uppercase tracking-tight">Export {showDownloadModal === 'excel' ? 'Spreadsheet' : 'PDF Report'}</h3>
+              <p className="text-gray-500 text-sm mb-8 text-center">
+                {selectedProducts.length > 0 
+                  ? `Selected ${selectedProducts.length} products. Choose export mode:` 
+                  : 'Choose the detail level for your business report.'}
+              </p>
+              
               <div className="grid grid-cols-1 gap-3">
-                <button onClick={() => { if (showDownloadModal === 'excel') executeExcelExport(true); else executePdfExport(true); }}
-                  className="flex items-center justify-center gap-2 w-full py-4 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition shadow-lg">
-                  <Check className="w-5 h-5" /> Full Audit (Products + Summary)
+                <button onClick={() => { if (showDownloadModal === 'excel') executeExcelExport(true, true); else executePdfExport(true, true); }}
+                  className="flex flex-col items-start px-6 py-4 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition shadow-lg group">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Check className="w-5 h-5" /> Detailed Analysis
+                  </div>
+                  <span className="text-[10px] opacity-80 font-medium">Both Performance & Date Summary (Dual Sheets)</span>
                 </button>
-                <button onClick={() => { if (showDownloadModal === 'excel') executeExcelExport(false); else executePdfExport(false); }}
-                  className="w-full py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 transition">
-                  {groupBy === 'day' ? 'Daily' : groupBy === 'week' ? 'Weekly' : 'Monthly'} Summary Only
-                </button>
-                <button onClick={() => { setShowDownloadModal(null); toast('Select products from the table', { icon: '🔍' }); }}
-                  className="w-full py-3 text-gray-400 text-sm font-medium hover:text-gray-600 transition">Wait, I'll select items</button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => { if (showDownloadModal === 'excel') executeExcelExport(false, true); else executePdfExport(false, true); }}
+                    className="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 transition">
+                    <Package className="w-5 h-5 mb-2" />
+                    <span className="text-xs">Only Products</span>
+                  </button>
+                  <button onClick={() => { if (showDownloadModal === 'excel') executeExcelExport(true, false); else executePdfExport(true, false); }}
+                    className="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 transition">
+                    <Calendar className="w-5 h-5 mb-2" />
+                    <span className="text-xs">Only Summary</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setShowDownloadModal(null); }}
+                    className="flex-1 py-3 bg-gray-50 dark:bg-gray-800/50 text-gray-400 text-sm font-bold rounded-xl hover:text-gray-600 transition border border-dashed border-gray-200 dark:border-gray-700">
+                    Cancel & Back
+                  </button>
+                  {selectedProducts.length === 0 && (
+                    <button onClick={() => { setShowDownloadModal(null); toast('Select products from the table first', { icon: '🔍' }); }}
+                      className="flex-[2] py-3 text-primary-600 text-sm font-bold hover:underline transition">
+                      Select Products Manually
+                    </button>
+                  )}
+                </div>
               </div>
               <button onClick={() => setShowDownloadModal(null)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
           </div>

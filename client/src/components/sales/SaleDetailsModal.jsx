@@ -40,15 +40,23 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   };
 
   const handleUpdateStatus = async (itemId) => {
-    const res = await updateSaleItem(sale._id, itemId, editingItem.data);
-    if (res.success) {
+    let res;
+    if (itemId === 'all') {
+      // Bulk update all items
+      for (const item of sale.items) {
+        res = await updateSaleItem(sale._id, item._id, editingItem.data);
+      }
+    } else {
+      res = await updateSaleItem(sale._id, itemId, editingItem.data);
+    }
+    
+    if (res?.success) {
       setSale(res.data);
       setEditingItem(null);
-      toast.success('Item status updated');
-      // Sync updated stock back to frontend after return/exchange
+      toast.success(itemId === 'all' ? 'Order status updated' : 'Item status updated');
       fetchProducts();
     } else {
-      toast.error(res.message);
+      toast.error(res?.message || 'Update failed');
     }
   };
   return (
@@ -196,15 +204,61 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
 
           {/* Items Table */}
           <div className="space-y-4">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <ShoppingBag className="w-3 h-3 text-indigo-500" /> Order Summary
-            </h3>
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <ShoppingBag className="w-3 h-3 text-indigo-500" /> Order Summary
+              </h3>
+              
+              {/* Consolidated Status & Actions for entire invoice */}
+              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 px-4 py-2 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex flex-wrap gap-1">
+                  {(() => {
+                    const firstItem = sale.items[0] || {};
+                    if (firstItem.isDamaged) return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold shadow-sm"><AlertTriangle className="w-3 h-3" /> Damaged Order</span>;
+                    if (firstItem.isExchange) return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold shadow-sm"><RefreshCw className="w-3 h-3" /> Exchange Order</span>;
+                    if (firstItem.isWrongProduct) return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold shadow-sm"><Box className="w-3 h-3" /> Wrong Delivery</span>;
+                    if (firstItem.isSample) return <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold shadow-sm"><Gift className="w-3 h-3" /> Sample Order</span>;
+                    return <span className="px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] font-bold">Standard Sale</span>;
+                  })()}
+                </div>
+                
+                <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-gray-700 pl-3">
+                  {(isPrivileged || isOwner) && (
+                    <button 
+                      onClick={() => {
+                        const firstItem = sale.items[0] || {};
+                        setEditingItem({ 
+                          id: 'all', // Special flag for bulk update
+                          data: { 
+                            isDamaged: firstItem.isDamaged, 
+                            isExchange: firstItem.isExchange, 
+                            isSample: firstItem.isSample, 
+                            isWrongProduct: firstItem.isWrongProduct,
+                            statusReason: firstItem.statusReason
+                          } 
+                        });
+                      }}
+                      title="Update Order Status"
+                      className="p-1.5 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-all shadow-md shadow-primary-100 dark:shadow-none"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setViewingHistory(sale.items[0]?._id)}
+                    title="View Status History"
+                    className="p-1.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-primary-600 transition-all shadow-sm"
+                  >
+                    <History className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
             <div className="overflow-x-auto border border-gray-100 dark:border-gray-800 rounded-2xl">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-800">
                     <th className="text-left px-6 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Product Details</th>
-                    <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Status</th>
                     <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Qty</th>
                     {!hidePrice && <th className="text-right px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Price</th>}
                     {!hidePrice && <th className="text-right px-6 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Subtotal</th>}
@@ -250,82 +304,30 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-wrap justify-center gap-1">
-                              {item.isDamaged && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
-                                  <AlertTriangle className="w-2.5 h-2.5" /> Damaged
-                                </span>
-                              )}
-                              {item.isExchange && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
-                                  <RefreshCw className="w-2.5 h-2.5" /> Exchange
-                                </span>
-                              )}
-                              {item.isWrongProduct && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">
-                                  <Box className="w-2.5 h-2.5" /> Wrong
-                                </span>
-                              )}
-                              {item.isSample && (
-                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold">
-                                  <Gift className="w-2.5 h-2.5" /> Sample
-                                </span>
-                              )}
-                              {!item.isDamaged && !item.isExchange && !item.isWrongProduct && !item.isSample && (
-                                <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] font-bold">
-                                  Standard
-                                </span>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-1 border-l border-gray-100 dark:border-gray-800 pl-2">
-                              {(isPrivileged || isOwner) && (
-                                <button 
-                                  onClick={() => setEditingItem({ 
-                                    id: item._id, 
-                                    data: { 
-                                      isDamaged: item.isDamaged, 
-                                      isExchange: item.isExchange, 
-                                      isSample: item.isSample, 
-                                      isWrongProduct: item.isWrongProduct,
-                                      statusReason: item.statusReason
-                                    } 
-                                  })}
-                                  title="Update Status"
-                                  className="p-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 hover:bg-primary-100 transition-colors"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              {item.statusHistory?.length > 0 && (
-                                <button 
-                                  onClick={() => setViewingHistory(item._id)}
-                                  title="View Timeline"
-                                  className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                                >
-                                  <History className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          {item.statusReason && (
-                            <p className="text-[10px] text-gray-400 italic px-2 max-w-[150px] truncate">"{item.statusReason}"</p>
-                          )}
-                        </div>
-                      </td>
                       <td className="px-4 py-4 text-center font-bold text-gray-700 dark:text-gray-300">
                         <div className="flex flex-col items-center gap-0.5">
                           {(() => {
                             const unit = (item.product?.unit || 'box').toLowerCase();
                             const isBag = unit === 'bag';
-                            const unitInitial = unit.charAt(0).toUpperCase();
                             if (isBag) {
-                              return <span className="text-sm font-black">{item.quantity || 0} {unitInitial}</span>;
+                              return <span className="text-sm font-black">{item.quantity || 0} bag</span>;
                             }
-                            return <span className="text-sm font-black">{item.quantity || 0} {unitInitial} + {item.pieces || 0} P</span>;
+                            const hasBoxes = (item.quantity || 0) > 0;
+                            const hasPieces = (item.pieces || 0) > 0;
+
+                            if (hasBoxes && hasPieces) {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <span className="text-sm font-black whitespace-nowrap">{item.quantity} Boxes</span>
+                                  <span className="text-xs font-bold text-primary-600">+ {item.pieces} Pieces</span>
+                                </div>
+                              );
+                            } else if (hasBoxes) {
+                              return <span className="text-sm font-black whitespace-nowrap">{item.quantity} Boxes</span>;
+                            } else if (hasPieces) {
+                              return <span className="text-sm font-black whitespace-nowrap">{item.pieces} Pieces</span>;
+                            }
+                            return <span className="text-sm font-black">0 Boxes</span>;
                           })()}
                           {(() => {
                             const unit = (item.product?.unit || 'box').toLowerCase();
@@ -348,7 +350,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                             <span>₹{item.price.toLocaleString('en-IN')}</span>
                             {(item.product?.pieces_per_box > 1 || item.pieces > 0) && (
                               <span className="text-[10px] text-gray-400 font-medium">
-                                ₹{(item.pricePerPiece || (item.price / (item.product?.pieces_per_box || 1))).toFixed(2)}/P
+                                ₹{(item.pricePerPiece || (item.price / (item.product?.pieces_per_box || 1))).toFixed(2)}/Piece
                               </span>
                             )}
                           </div>

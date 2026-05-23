@@ -107,8 +107,11 @@ export default function AnalysisTable({
                     )}
                   </div>
                 </th>
-                <th onClick={() => handleSort('salesCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
-                  <div className="flex items-center justify-end gap-1">Items Sold <SortIcon field="salesCount" /></div>
+                <th onClick={() => handleSort('unitSalesCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Units Sold <SortIcon field="unitSalesCount" /></div>
+                </th>
+                <th onClick={() => handleSort('pieceSalesCount')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                  <div className="flex items-center justify-end gap-1">Pieces Sold <SortIcon field="pieceSalesCount" /></div>
                 </th>
                 {!hidePrice && (
                   <th onClick={() => handleSort('totalSales')} className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
@@ -165,7 +168,10 @@ export default function AnalysisTable({
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">{row.salesCount}</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{row.unitSalesCount || 0}</span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{row.pieceSalesCount || 0}</span>
                     </td>
                     {!hidePrice && (
                       <td className="px-4 py-4 text-right">

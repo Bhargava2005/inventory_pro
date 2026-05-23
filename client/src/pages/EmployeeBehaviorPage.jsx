@@ -172,14 +172,15 @@ export default function EmployeeBehaviorPage() {
                 onChange={(e) => setDateRange((p) => ({ ...p, endDate: e.target.value }))} />
             </div>
 
-            {/* Export button */}
-            <button
-              onClick={() => setShowExport(true)}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
+            {user?.role !== 'staff' && (
+              <button
+                onClick={() => setShowExport(true)}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            )}
           </div>
         </div>
       </div>

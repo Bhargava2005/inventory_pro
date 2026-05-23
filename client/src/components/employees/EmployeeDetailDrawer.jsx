@@ -6,6 +6,8 @@ import { employeeAPI } from '../../api/employee';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import useSettingsStore from '../../store/settingsStore';
+import useAuthStore from '../../store/authStore';
 
 const DATE_PRESETS = [
   { label: 'Today', key: 'today' },
@@ -57,6 +59,12 @@ const KpiTile = ({ label, value, color, icon: Icon }) => (
 const TABS = ['Sales History', 'Incidents', 'Attendance'];
 
 export default function EmployeeDetailDrawer({ employee, onClose }) {
+  const { settings } = useSettingsStore();
+  const { user } = useAuthStore();
+  const isStaff = user?.role === 'staff';
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
+
   const [activePreset, setActivePreset] = useState('month');
   const [customDates, setCustomDates] = useState({ startDate: '', endDate: '' });
   const [activeTab, setActiveTab] = useState('Sales History');
@@ -140,19 +148,23 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
       doc.setFontSize(11); doc.setFont('helvetica', 'bold');
       doc.text('Performance Summary', 14, 48);
       const kpi = data.kpi;
+      const kpiRowBody = [
+        ['Items Sold', String(kpi.totalItems)],
+        ['Damaged Items', String(kpi.damagedCount)],
+        ['Exchanged Items', String(kpi.exchangeCount)],
+        ['Wrong Products', String(kpi.wrongProductCount)],
+        ['Sample Items', String(kpi.sampleCount)],
+        ['Total Hours Worked', `${(kpi.totalHours || 0).toFixed(1)} hrs`],
+        ['Login Sessions', String(kpi.sessions)],
+      ];
+      if (!hidePrice) {
+        kpiRowBody.splice(1, 0, ['Total Revenue', `Rs. ${(kpi.totalRevenue || 0).toLocaleString('en-IN')}`]);
+      }
+
       autoTable(doc, {
         startY: 52,
         head: [['Metric', 'Value']],
-        body: [
-          ['Items Sold', String(kpi.totalItems)],
-          ['Total Revenue', `Rs. ${(kpi.totalRevenue || 0).toLocaleString('en-IN')}`],
-          ['Damaged Items', String(kpi.damagedCount)],
-          ['Exchanged Items', String(kpi.exchangeCount)],
-          ['Wrong Products', String(kpi.wrongProductCount)],
-          ['Sample Items', String(kpi.sampleCount)],
-          ['Total Hours Worked', `${(kpi.totalHours || 0).toFixed(1)} hrs`],
-          ['Login Sessions', String(kpi.sessions)],
-        ],
+        body: kpiRowBody,
         headStyles: { fillColor: [99, 102, 241], halign: 'left' },
         columnStyles: {
           0: { cellWidth: 80, fontStyle: 'bold' },
@@ -168,15 +180,21 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
         doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         doc.setTextColor(30, 30, 30);
         doc.text('Sales History', 14, afterKpi + 12);
+        const salesHead = ['Date', 'Invoice #', 'Items'];
+        if (!hidePrice) salesHead.push('Amount (Rs.)');
+
         autoTable(doc, {
           startY: afterKpi + 16,
-          head: [['Date', 'Invoice #', 'Items', 'Amount (Rs.)']],
-          body: data.salesList.map((s) => [
-            fmt(s.createdAt, 'date'),
-            s.invoiceNumber,
-            String(s.items.reduce((acc, i) => acc + i.quantity, 0)),
-            (s.totalAmount || 0).toLocaleString('en-IN'),
-          ]),
+          head: [salesHead],
+          body: data.salesList.map((s) => {
+            const row = [
+              fmt(s.createdAt, 'date'),
+              s.invoiceNumber,
+              String(s.items.reduce((acc, i) => acc + i.quantity, 0)),
+            ];
+            if (!hidePrice) row.push((s.totalAmount || 0).toLocaleString('en-IN'));
+            return row;
+          }),
           headStyles: { fillColor: [99, 102, 241] },
           columnStyles: {
             0: { cellWidth: 32 },
@@ -286,17 +304,17 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
       {/* Drawer panel */}
       <div className="w-full max-w-3xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overflow-hidden animate-slide-in-right">
         {/* Drawer Header */}
-        <div className="bg-gradient-to-r from-primary-600 to-indigo-600 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="bg-gradient-to-r from-primary-600 to-indigo-600 px-4 sm:px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
               <User className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h2 className="font-bold text-white text-lg leading-tight">{employee.name}</h2>
-              <p className="text-primary-100 text-xs">{employee.email}</p>
-              <div className="flex items-center gap-3 mt-0.5">
-                {employee.phone && <p className="text-primary-200 text-[10px]">{employee.phone}</p>}
-                {employee.branchName && <p className="text-primary-200 text-[10px] font-semibold">{employee.branchName}</p>}
+            <div className="min-w-0">
+              <h2 className="font-bold text-white text-lg leading-tight truncate">{employee.name}</h2>
+              <p className="text-primary-100 text-xs truncate">{employee.email}</p>
+              <div className="flex items-center gap-3 mt-0.5 truncate">
+                {employee.phone && <p className="text-primary-200 text-[10px] truncate">{employee.phone}</p>}
+                {employee.branchName && <p className="text-primary-200 text-[10px] font-semibold truncate">{employee.branchName}</p>}
               </div>
             </div>
           </div>
@@ -314,7 +332,7 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition text-sm font-medium disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
-              {pdfLoading ? 'Generating...' : 'PDF'}
+              <span className="hidden sm:inline">{pdfLoading ? 'Generating...' : 'PDF'}</span>
             </button>
             <button onClick={onClose} className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition">
               <X className="w-5 h-5" />
@@ -376,8 +394,10 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
             <div className={`${isKpiExpanded ? 'grid' : 'hidden'} md:grid px-6 py-4 grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all`}>
               <KpiTile label="Items Sold" value={kpi.totalItems} icon={BarChart2}
                 color="bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300" />
-              <KpiTile label="Revenue" value={`₹${(kpi.totalRevenue||0).toLocaleString('en-IN')}`} icon={TrendingUp}
-                color="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300" />
+              {!hidePrice && (
+                <KpiTile label="Revenue" value={`₹${(kpi.totalRevenue||0).toLocaleString('en-IN')}`} icon={TrendingUp}
+                  color="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300" />
+              )}
               <KpiTile label="Hours Worked" value={`${(kpi.totalHours||0).toFixed(1)}h`} icon={Timer}
                 color="bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300" />
               <KpiTile label="Sessions" value={kpi.sessions} icon={Activity}
@@ -417,8 +437,8 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
                         <th className="pb-2">Date</th>
                         <th className="pb-2">Invoice</th>
                         <th className="pb-2">Items</th>
-                        <th className="pb-2">Total</th>
-                        <th className="pb-2">Payment</th>
+                        {!hidePrice && <th className="pb-2">Total</th>}
+                        {!hidePayment && <th className="pb-2">Payment</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -431,12 +451,14 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
                           <td className="py-2.5 text-gray-900 dark:text-white font-medium">
                             {sale.items.reduce((a, i) => a + i.quantity, 0)} items
                           </td>
-                          <td className="py-2.5 font-bold text-gray-900 dark:text-white">₹{sale.totalAmount?.toLocaleString('en-IN')}</td>
-                          <td className="py-2.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 uppercase">
-                              {sale.paymentMethod}
-                            </span>
-                          </td>
+                          {!hidePrice && <td className="py-2.5 font-bold text-gray-900 dark:text-white">₹{sale.totalAmount?.toLocaleString('en-IN')}</td>}
+                          {!hidePayment && (
+                            <td className="py-2.5">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 uppercase">
+                                {sale.paymentMethod}
+                              </span>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
