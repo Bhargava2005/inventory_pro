@@ -5,6 +5,7 @@ import Branch from '../models/Branch.js';
 import Attendance from '../models/Attendance.js';
 import Setting from '../models/Setting.js';
 import { sendTokenResponse } from '../utils/jwt.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -42,6 +43,7 @@ export const register = async (req, res, next) => {
       username,
       password,
       role: 'admin', // First registration is always Admin/Owner
+      isVerified: true,
     });
 
     // 2. Create the First Store automatically
@@ -82,7 +84,12 @@ export const register = async (req, res, next) => {
       }
     });
 
-    sendTokenResponse(user, 201, res);
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful! You can now log in.',
+      email: user.email,
+      needsVerification: false
+    });
   } catch (error) {
     next(error);
   }
@@ -165,6 +172,8 @@ export const login = async (req, res, next) => {
       });
     }
 
+    // Email verification check skipped (Disabled for now)
+
     // Update last login timestamp
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
@@ -180,6 +189,101 @@ export const login = async (req, res, next) => {
     await user.populate('storeId', 'name location code');
 
     sendTokenResponse(user, 200, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify email address
+// @route   POST /api/auth/verify-email
+// @access  Public
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified' });
+    }
+
+    if (user.verificationOTP !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+    }
+
+    if (user.verificationOTPExpires < new Date()) {
+      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one.' });
+    }
+
+    // Mark as verified
+    user.isVerified = true;
+    user.verificationOTP = null;
+    user.verificationOTPExpires = null;
+    await user.save({ validateBeforeSave: false });
+
+    // Log in immediately
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Resend verification code
+// @route   POST /api/auth/resend-verification
+// @access  Public
+export const resendVerification = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified' });
+    }
+
+    // Generate fresh OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.verificationOTP = otp;
+    user.verificationOTPExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    // Send email
+    await sendEmail({
+      to: user.email,
+      subject: 'Verify Your Email - Inventory Pro OTP',
+      text: `Your email verification OTP code is: ${otp}. It expires in 15 minutes.`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #6366f1; text-align: center;">Email Verification Required</h2>
+          <p>Use the following 6-digit one-time password (OTP) to complete your email verification:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; padding: 15px; background: #f3f4f6; text-align: center; border-radius: 8px; color: #4f46e5; margin: 20px 0;">
+            ${otp}
+          </div>
+          <p style="color: #6b7280; font-size: 12px; text-align: center;">This code will expire in 15 minutes.</p>
+        </div>
+      `
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Verification code resent successfully.'
+    });
   } catch (error) {
     next(error);
   }

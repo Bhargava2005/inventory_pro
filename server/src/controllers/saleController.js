@@ -44,7 +44,7 @@ export const createSale = async (req, res, next) => {
       const boxes = parseInt(item.quantity) || 0;
       const pieces = parseInt(item.pieces) || 0;
       const piecesPerBox = product.pieces_per_box || 1;
-      const weightPerBox = product.weight_of_box || 0;
+      const weightPerUnit = product.weight_of_unit || 0;
 
       if (boxes === 0 && pieces === 0) {
         throw new Error(`Cannot sell 0 quantity for ${product.name}`);
@@ -77,8 +77,8 @@ export const createSale = async (req, res, next) => {
       await product.save();
 
       // Calculate weight contribution
-      const pieceWeight = weightPerBox / piecesPerBox;
-      const itemWeight = (boxes * weightPerBox) + (pieces * pieceWeight);
+      const pieceWeight = weightPerUnit / piecesPerBox;
+      const itemWeight = (boxes * weightPerUnit) + (pieces * pieceWeight);
       totalWeight += itemWeight;
 
       // Pricing: pricePerPiece = box_price / pieces_per_box
@@ -113,12 +113,21 @@ export const createSale = async (req, res, next) => {
       });
     }
 
-    // Generate Invoice Number with prefix from settings
+    // Generate Invoice Number: #inv-DDMMYYCC (CC = daily count)
     const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
+    const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const invoiceNumber = `${prefix}${year}${month}-${random}`;
+    const year = date.getFullYear().toString().slice(-2);
+    
+    // Count how many sales were created today for this store to get the daily counter
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const dailyCount = await Sale.countDocuments({
+      storeId: req.user.storeId,
+      createdAt: { $gte: startOfDay, $lt: endOfDay }
+    });
+    const counter = (dailyCount + 1).toString();
+    const invoiceNumber = `#inv-${day}${month}${year}${counter}`;
 
     // Final total calculation — guard against NaN if client sends undefined/null
     const safeTax = isNaN(Number(tax)) ? 0 : Number(tax);
@@ -362,12 +371,19 @@ export const importSales = async (req, res, next) => {
         const tax = row.tax ? Number(row.tax) : subtotal * defaultTaxRate; 
         const finalTotal = subtotal + tax - (Number(row.discount) || 0);
 
-        // Generate invoice number
+        // Generate invoice number: #inv-DDMMYYCC
         const date = row.date ? new Date(row.date) : new Date();
-        const year = date.getFullYear().toString().slice(-2);
+        const day = date.getDate().toString().padStart(2, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        const invoiceNumber = `${prefix}${year}${month}-${random}`;
+        const year = date.getFullYear().toString().slice(-2);
+        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+        const dailyCount = await Sale.countDocuments({
+          storeId: req.user.storeId,
+          createdAt: { $gte: startOfDay, $lt: endOfDay }
+        });
+        const counter = (dailyCount + 1).toString();
+        const invoiceNumber = `#inv-${day}${month}${year}${counter}`;
 
         // 4. Prepare Sale data
         importedSales.push({

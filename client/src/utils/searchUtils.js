@@ -1,44 +1,12 @@
 /**
- * Simple Fuzzy Matcher
- * Handles subsequence matching and minor typo tolerance (Levenshtein distance)
+ * Enhanced Search Utility
+ * 1. Checks for exact SKU matches (highest priority)
+ * 2. Performs fuzzy matching for product names
+ * 3. Sorts results by match quality
  */
 
-export const fuzzyMatch = (target, query) => {
-  if (!target || !query) return false;
-  
-  target = target.toLowerCase();
-  query = query.toLowerCase().trim();
-  if (!query) return true; // Empty search matches everything
-
-  // 1. Exact or Substring match (Fastest)
-  if (target.includes(query)) return true;
-
-  // 2. Subsequence match (e.g., "apl" matches "apple")
-  // Allows for illiterate users who skip letters
-  let qIdx = 0;
-  let tIdx = 0;
-  while (qIdx < query.length && tIdx < target.length) {
-    if (query[qIdx] === target[tIdx]) {
-      qIdx++;
-    }
-    tIdx++;
-  }
-  if (qIdx === query.length) return true;
-
-  // 3. Typo Tolerance (Levenshtein Distance)
-  // Only for longer words to avoid too many false positives
-  if (query.length > 3) {
-    const distance = levenshteinDistance(target, query);
-    // Allow 1 typo for every 4 characters
-    const threshold = Math.floor(query.length / 4) + 1;
-    if (distance <= threshold) return true;
-  }
-
-  return false;
-};
-
-// Standard Levenshtein distance algorithm
-const levenshteinDistance = (a, b) => {
+// Basic Levenshtein distance
+const getLevenshteinDistance = (a, b) => {
   const matrix = Array.from({ length: a.length + 1 }, () => 
     Array.from({ length: b.length + 1 }, () => 0)
   );
@@ -60,4 +28,102 @@ const levenshteinDistance = (a, b) => {
     }
   }
   return matrix[a.length][b.length];
+};
+
+/**
+ * Calculates a match score between query and target
+ * Higher is better.
+ */
+const getMatchScore = (query, target) => {
+  if (!target || !query) return 0;
+  target = target.toLowerCase();
+  query = query.toLowerCase();
+
+  // 1. Exact Match
+  if (target === query) return 1000;
+
+  // 2. Starts with query (Prefix match)
+  if (target.startsWith(query)) return 500 + query.length;
+
+  // 3. Contains query (Substring match)
+  if (target.includes(query)) return 400 + query.length;
+
+  // 4. Subsequence match (e.g., "bil" matches "birla")
+  let qIdx = 0;
+  let tIdx = 0;
+  while (qIdx < query.length && tIdx < target.length) {
+    if (query[qIdx] === target[tIdx]) {
+      qIdx++;
+    }
+    tIdx++;
+  }
+  if (qIdx === query.length) {
+    // Score based on how tight the subsequence is
+    return 300 + (query.length / target.length) * 100;
+  }
+
+  // 5. Fuzzy match (Levenshtein) - number of identical characters logic
+  const distance = getLevenshteinDistance(query, target);
+  const maxLength = Math.max(query.length, target.length);
+  
+  // Calculate similarity based on distance
+  const similarity = ((maxLength - distance) / maxLength);
+  
+  // More inclusive threshold for short queries
+  const threshold = query.length <= 3 ? 0.3 : 0.4;
+  if (similarity > threshold) {
+    return similarity * 100;
+  }
+
+  return 0;
+};
+
+/**
+ * Searches a list of products based on a query
+ * @param {Array} products - List of product objects
+ * @param {string} query - Search string
+ * @returns {Array} - Filtered and sorted products
+ */
+export const searchProducts = (products, query) => {
+  if (!query || !query.trim()) return products;
+  
+  const q = query.trim().toLowerCase();
+
+  // 1. Check for EXACT SKU match (highest priority requirement)
+  const exactSkuMatch = products.find(p => p.sku?.toLowerCase() === q);
+  if (exactSkuMatch) {
+    return [exactSkuMatch];
+  }
+
+  // 2. Otherwise, perform fuzzy search on names and SKUs
+  const results = products
+    .map(p => {
+      const nameScore = getMatchScore(q, p.name || '');
+      const skuScore = p.sku?.toLowerCase().includes(q) ? 300 : 0;
+      const brandScore = getMatchScore(q, p.brand || '');
+      
+      const maxScore = Math.max(nameScore, skuScore, brandScore);
+      
+      return { product: p, score: maxScore };
+    })
+    .filter(res => res.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return results.map(res => res.product);
+};
+
+/**
+ * Legacy fuzzyMatch for backward compatibility
+ */
+export const fuzzyMatch = (target, query) => {
+  if (!target || !query) return false;
+  target = target.toLowerCase();
+  query = query.toLowerCase().trim();
+  
+  if (!query) return true;
+  if (target.includes(query)) return true;
+
+  const distance = getLevenshteinDistance(query, target);
+  const maxLength = Math.max(query.length, target.length);
+  return (maxLength - distance) / maxLength > 0.5;
 };

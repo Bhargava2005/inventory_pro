@@ -38,6 +38,9 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${loginMode}!`);
       const defaultPath = loginMode === 'staff' ? '/staff-home' : '/dashboard';
       navigate(location.state?.from?.pathname || defaultPath, { replace: true });
+    } else if (result.needsVerification) {
+      toast.error('Email verification required.');
+      navigate(`/verify-email?email=${encodeURIComponent(result.email)}`);
     } else {
       setError('root', { message: result.message });
     }

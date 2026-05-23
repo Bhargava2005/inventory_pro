@@ -23,8 +23,8 @@ const SYSTEM_FIELDS = [
   // Piece-selling fields
   { key: 'pieces_per_box', label: 'Pieces per Box', required: false, group: 'piece-selling' },
   { key: 'ava_pieces', label: 'Available Loose Pieces', required: false, group: 'piece-selling' },
-  { key: 'weight_of_box', label: 'Box Weight (kg)', required: false, group: 'piece-selling' },
-  { key: 'dimensions', label: 'Dimensions (LxWxH)', required: false },
+  { key: 'weight_of_unit', label: 'Unit Weight (kg)', required: false, group: 'piece-selling' },
+  { key: 'measurements', label: 'Measurements', required: false },
 ];
 
 export default function ImportMappingModal({ headers, onConfirm, onClose, isSubmitting, branches, user }) {

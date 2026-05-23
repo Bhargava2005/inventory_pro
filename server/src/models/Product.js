@@ -97,8 +97,8 @@ const productSchema = new mongoose.Schema(
     // Piece-selling fields
     pieces_per_box: { type: Number, default: 1, min: 1 }, // number of pieces in one box
     ava_pieces: { type: Number, default: 0, min: 0 },     // loose/separate pieces available
-    weight_of_box: { type: Number, default: 0, min: 0 },  // weight of one box in kg
-    dimensions: { type: String, trim: true, default: '' }, // physical dimensions e.g. 10x20x30
+    weight_of_unit: { type: Number, default: 0, min: 0 },  // weight of one unit (box or bag) in kg
+    measurements: { type: String, trim: true, default: '' }, // physical dimensions e.g. 10x20x30 or weight e.g. 25 kg
   },
   { timestamps: true }
 );

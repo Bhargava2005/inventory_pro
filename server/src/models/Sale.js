@@ -141,10 +141,17 @@ const saleSchema = new mongoose.Schema(
 saleSchema.pre('validate', async function (next) {
   if (!this.invoiceNumber) {
     const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
+    const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    this.invoiceNumber = `INV-${year}${month}-${random}`;
+    const year = date.getFullYear().toString().slice(-2);
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const SaleModel = mongoose.model('Sale');
+    const dailyCount = await SaleModel.countDocuments({
+      createdAt: { $gte: startOfDay, $lt: endOfDay }
+    });
+    const counter = (dailyCount + 1).toString();
+    this.invoiceNumber = `#inv-${day}${month}${year}${counter}`;
   }
   next();
 });

@@ -13,6 +13,7 @@ import useSettingsStore from '../store/settingsStore.js';
 import useCartStore from '../store/cartStore.js';
 import useAuthStore from '../store/authStore.js';
 import { generateInvoicePDF } from '../utils/pdfGenerator.js';
+import { searchProducts } from '../utils/searchUtils.js';
 
 const VOUCHER_TYPES = [
   { id: 'sale', label: 'Sale', desc: 'Regular product sale', icon: Tag, color: '#6366f1' },
@@ -52,9 +53,9 @@ export default function NewSalePage() {
   const [discountAmount, setDiscountAmount] = useState(0);
 
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
-  const hidePaymentMethod = isStaff && settings?.privacy?.hideStaffPaymentMethod;
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
+  const hidePaymentMethod = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
 
   useEffect(() => {
     fetchCategories(); fetchBrands(); fetchProducts({ limit: 50 });
@@ -101,8 +102,7 @@ export default function NewSalePage() {
     
     // Search query
     if (pickerSearch.trim()) {
-      const q = pickerSearch.toLowerCase();
-      list = list.filter(p => p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
+      list = searchProducts(list, pickerSearch);
     }
     
     return list;
@@ -140,6 +140,7 @@ export default function NewSalePage() {
         product: pickerProduct._id, name: pickerProduct.name, brand: pickerProduct.brand,
         price: pickerProduct.price, image: pickerProduct.image, color: pickerProduct.color,
         quantity: finalQty, pieces: finalPieces, pieces_per_box: ppb,
+        unit: pickerProduct.unit || 'box',
         maxQty: pickerProduct.quantity, maxPieces: pickerProduct.ava_pieces,
         isSelling: pool === 'isSelling', isDamaged: pool === 'isDamaged',
         isSample: pool === 'isSample', isWrongProduct: pool === 'isWrongProduct',
@@ -157,7 +158,7 @@ export default function NewSalePage() {
     const result = await processSale({ items, customer, transporter, paymentMethod, tax: taxAmount, discount: discountAmount });
     if (result.success) {
       toast.success('Voucher completed! Invoice: ' + result.data.invoiceNumber);
-      generateInvoicePDF(result.data, { hidePrice, hideTax: false, hidePaymentMethod });
+      generateInvoicePDF(result.data, { hidePrice, hideTax, hidePaymentMethod });
       clearCart(); setVoucherType(null); setShowConfirm(false);
       // Immediately refetch products to sync updated stock quantities from DB to frontend
       fetchProducts({ limit: 50 });
@@ -244,23 +245,19 @@ export default function NewSalePage() {
           </div>
         </div>
 
-        {/* Customer & Company Details */}
+        {/* Customer Details */}
         <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Customer & Company Details</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 mb-4">Dispatch To</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InvoiceField icon={User} label="Customer Name" placeholder="Enter customer name" value={customer.name} onChange={v => setCustomer({ ...customer, name: v })} />
-            <InvoiceField icon={Phone} label="Phone Number" placeholder="Enter phone number" value={customer.phone || ''} onChange={v => setCustomer({ ...customer, phone: v })} />
-            <InvoiceField icon={User} label="Company Name" placeholder="Enter company name" value={customer.companyName || ''} onChange={v => setCustomer({ ...customer, companyName: v })} />
             <InvoiceField icon={MapPin} label="Delivery Address" placeholder="Enter full delivery address" value={customer.addressLine} onChange={v => setCustomer({ ...customer, addressLine: v })} />
           </div>
         </div>
 
         {/* Transporter & Shipping Details */}
         <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Driver & Transporter Details</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Transporter Details</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InvoiceField icon={User} label="Driver Name" placeholder="Enter driver name" value={transporter.name || ''} onChange={v => setTransporter({ ...transporter, name: v })} />
-            <InvoiceField icon={Phone} label="Driver Mobile" placeholder="Enter driver mobile" value={transporter.mobile || ''} onChange={v => setTransporter({ ...transporter, mobile: v })} />
             <InvoiceField icon={Car} label="Vehicle Type" placeholder="e.g. Truck, Van" value={transporter.vehicleType || ''} onChange={v => setTransporter({ ...transporter, vehicleType: v })} />
             <InvoiceField icon={Car} label="Vehicle Number" placeholder="e.g. AP 01 AB 1234" value={transporter.vehicleNumber || ''} onChange={v => setTransporter({ ...transporter, vehicleNumber: v })} />
             <InvoiceField icon={Hash} label="Reference Number" placeholder="Reference or Order No" value={ref} onChange={setRef} />
@@ -304,7 +301,7 @@ export default function NewSalePage() {
                         {/* Status tag */}
                         <div className="flex gap-1.5 mt-1.5">
                           {['isSelling', 'isSample', 'isDamaged', 'isWrongProduct'].map(flag => {
-                            const labels = { isSelling: 'Selling', isSample: 'Sample', isDamaged: 'Damaged', isWrongProduct: 'Exchange' };
+                            const labels = { isSelling: 'Sale', isSample: 'Sample', isDamaged: 'Damaged', isWrongProduct: 'Exchange' };
                             const isActive = item[flag];
                             if (!isActive) return null;
                             return (
@@ -326,7 +323,7 @@ export default function NewSalePage() {
                       {/* Interactive Boxes & Pieces inputs */}
                       <div className="flex items-center gap-3">
                         <div className="flex flex-col items-center">
-                          <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Boxes</span>
+                          <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">{item.unit === 'bag' ? 'Bags' : item.unit === 'box' ? 'Boxes' : (item.unit || 'Units')}</span>
                           <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-0.5">
                             <button onClick={() => updateQty(item.product, -1)} className="p-1 hover:text-primary-600 transition-colors rounded"><Minus className="w-3 h-3" /></button>
                             <input
@@ -340,7 +337,7 @@ export default function NewSalePage() {
                           </div>
                         </div>
 
-                        {ppb > 1 && (
+                        {(ppb > 1 && (item.unit || 'box').toLowerCase() !== 'bag') && (
                           <div className="flex flex-col items-center">
                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Pieces</span>
                             <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-0.5">
@@ -591,7 +588,7 @@ export default function NewSalePage() {
                 <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-gray-500">
                   <div className="bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
                     <Box className="w-3.5 h-3.5 text-primary-500" />
-                    <span>Stock: {pickerProduct.quantity} Boxes</span>
+                    <span>Stock: {pickerProduct.quantity} {pickerProduct.unit === 'bag' ? 'Bags' : pickerProduct.unit === 'box' ? 'Boxes' : (pickerProduct.unit || 'Units')}</span>
                   </div>
                   {pickerProduct.pieces_per_box > 1 && (
                     <div className="bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
@@ -599,16 +596,16 @@ export default function NewSalePage() {
                       <span>{pickerProduct.ava_pieces} Loose Pcs</span>
                     </div>
                   )}
-                  {pickerProduct.dimensions && (
+                  {pickerProduct.measurements && (
                     <div className="bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
                       <Maximize className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="truncate">{pickerProduct.dimensions}</span>
+                      <span className="truncate">{pickerProduct.measurements}</span>
                     </div>
                   )}
-                  {pickerProduct.weight_of_box > 0 && (
+                  {pickerProduct.weight_of_unit > 0 && (
                     <div className="bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
                       <Scale className="w-3.5 h-3.5 text-orange-500" />
-                      <span>{pickerProduct.weight_of_box} KG / Box</span>
+                      <span>{pickerProduct.weight_of_unit} KG / Unit</span>
                     </div>
                   )}
                 </div>
@@ -616,7 +613,7 @@ export default function NewSalePage() {
                 {/* Box & Pieces Selector */}
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Boxes</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{pickerProduct.unit === 'bag' ? 'Bags' : pickerProduct.unit === 'box' ? 'Boxes' : (pickerProduct.unit || 'Units')}</label>
                     <div className="flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-1">
                       <button onClick={() => setPickerQty(Math.max(0, pickerQty - 1))} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 font-bold">−</button>
                       <input type="number" min={0} value={pickerQty} onChange={e => setPickerQty(Math.max(0, parseInt(e.target.value) || 0))} className="flex-1 text-center font-bold text-gray-900 dark:text-white bg-transparent outline-none text-sm w-8" />
@@ -624,7 +621,7 @@ export default function NewSalePage() {
                     </div>
                   </div>
 
-                  {pickerProduct.pieces_per_box > 1 && (
+                  {(pickerProduct.pieces_per_box > 1 && (pickerProduct.unit || 'box').toLowerCase() !== 'bag') && (
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Loose Pieces</label>
                       <div className="flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-1">

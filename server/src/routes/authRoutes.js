@@ -3,6 +3,8 @@ import { body } from 'express-validator';
 import {
   register,
   login,
+  verifyEmail,
+  resendVerification,
   getMe,
   updateProfile,
   changePassword,
@@ -47,6 +49,8 @@ const loginValidation = [
 // Public routes
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
+router.post('/verify-email', verifyEmail);
+router.post('/resend-verification', resendVerification);
 router.get('/suggest-username', suggestUsername);
 
 // Protected routes

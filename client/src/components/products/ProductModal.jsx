@@ -22,8 +22,8 @@ const schema = z.object({
   wrongProductStock: z.coerce.number().min(0).optional().default(0),
   pieces_per_box: z.coerce.number().min(1).optional().default(1),
   ava_pieces: z.coerce.number().min(0).optional().default(0),
-  weight_of_box: z.coerce.number().min(0).optional().default(0),
-  dimensions: z.string().max(100).optional().default(''),
+  weight_of_unit: z.coerce.number().min(0).optional().default(0),
+  measurements: z.string().max(100).optional().default(''),
   supplier: z.string().max(100).optional(),
   image: z.string().url('Invalid URL format').optional().or(z.literal('')),
   color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid hex color').optional().or(z.literal('')),
@@ -33,7 +33,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
   const { categories, createProduct, updateProduct, isSubmitting } = useProductStore();
   const isEdit = !!product;
 
-  const { register, handleSubmit, formState: { errors }, setError, reset } = useForm({
+  const { register, handleSubmit, formState: { errors }, setError, reset, watch } = useForm({
     resolver: zodResolver(schema),
     defaultValues: isEdit ? {
       name: product.name,
@@ -52,8 +52,8 @@ export default function ProductModal({ product, onClose, onSaved }) {
       wrongProductStock: product.wrongProductStock || 0,
       pieces_per_box: product.pieces_per_box || 1,
       ava_pieces: product.ava_pieces || 0,
-      weight_of_box: product.weight_of_box || 0,
-      dimensions: product.dimensions || '',
+      weight_of_unit: product.weight_of_unit || 0,
+      measurements: product.measurements || '',
       supplier: product.supplier,
       image: product.image || '',
       color: product.color || '#3b82f6',
@@ -68,7 +68,7 @@ export default function ProductModal({ product, onClose, onSaved }) {
       wrongProductStock: 0,
       pieces_per_box: 1,
       ava_pieces: 0,
-      weight_of_box: 0,
+      weight_of_unit: 0,
     },
   });
 
@@ -131,15 +131,18 @@ export default function ProductModal({ product, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Brand + Dimensions Row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Brand / Manufacturer</label>
-              <input {...register('brand')} className="input" placeholder="e.g. Kajaria, Somany" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1">
+              <label className="label">Brand</label>
+              <input {...register('brand')} className="input" placeholder="Brand" />
             </div>
-            <div>
-              <label className="label">Dimensions <span className="text-gray-400 text-[10px]">(e.g. 10x20)</span></label>
-              <input {...register('dimensions')} className="input" placeholder="10x20x30" />
+            <div className="col-span-1">
+              <label className="label text-[11px]">Unit Weight (kg)</label>
+              <input {...register('weight_of_unit')} type="number" step="0.01" className="input" placeholder="8.5" />
+            </div>
+            <div className="col-span-1">
+              <label className="label text-[11px]">Measurements</label>
+              <input {...register('measurements')} className="input" placeholder="10x20 or 25kg" />
             </div>
           </div>
 
@@ -196,26 +199,24 @@ export default function ProductModal({ product, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Piece-Selling Config */}
-          <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
-            <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Piece-Selling Config</h3>
-            <p className="text-[10px] text-blue-400 mb-3">Allow selling individual pieces from a box</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="label text-[10px]">Pieces / Box <span className="text-red-400">*</span></label>
-                <input {...register('pieces_per_box')} type="number" min="1" className="input bg-white dark:bg-gray-900" placeholder="12" />
-                {errors.pieces_per_box && <p className="error-text"><AlertCircle className="w-3 h-3" />{errors.pieces_per_box.message}</p>}
-              </div>
-              <div>
-                <label className="label text-[10px]">Available Pieces</label>
-                <input {...register('ava_pieces')} type="number" min="0" className="input bg-white dark:bg-gray-900" placeholder="0" />
-              </div>
-              <div>
-                <label className="label text-[10px]">Box Weight (kg)</label>
-                <input {...register('weight_of_box')} type="number" min="0" step="0.01" className="input bg-white dark:bg-gray-900" placeholder="8.5" />
+          {/* Piece-Selling Config - Hide if unit is Bag */}
+          {watch('unit')?.toLowerCase() !== 'bag' && (
+            <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 animate-fade-in">
+              <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Piece-Selling Config</h3>
+              <p className="text-[10px] text-blue-400 mb-3">Allow selling individual pieces from a box</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="label text-[10px]">Pieces / Box <span className="text-red-400">*</span></label>
+                  <input {...register('pieces_per_box')} type="number" min="1" className="input bg-white dark:bg-gray-900" placeholder="12" />
+                  {errors.pieces_per_box && <p className="error-text"><AlertCircle className="w-3 h-3" />{errors.pieces_per_box.message}</p>}
+                </div>
+                <div>
+                  <label className="label text-[10px]">Available Pieces</label>
+                  <input {...register('ava_pieces')} type="number" min="0" className="input bg-white dark:bg-gray-900" placeholder="0" />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Supplier */}
           <div>

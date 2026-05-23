@@ -47,10 +47,12 @@ export default function ProductDetailModal({ product, onClose }) {
             ['Cost Price', `Rs. ${product.costPrice?.toLocaleString('en-IN')}`]
           ] : []),
           ['Stock Level', `${product.quantity} ${product.unit}`],
-          ['Pieces/Box', product.pieces_per_box || 1],
-          ['Loose Pieces', product.ava_pieces || 0],
-          ['Weight/Box', `${product.weight_of_box || 0} KG`],
-          ['Dimensions', product.dimensions || 'N/A'],
+          ...(product.unit?.toLowerCase() !== 'bag' ? [
+            ['Pieces/Box', product.pieces_per_box || 1],
+            ['Loose Pieces', product.ava_pieces || 0],
+          ] : []),
+          ['Unit Weight', `${product.weight_of_unit || 0} KG`],
+          ['Measurements', product.measurements || 'N/A'],
           ['Stock Status', product.stockStatus?.toUpperCase()],
           ['Damaged Stock', product.damagedStock || 0],
           ['Sample Stock', product.sampleStock || 0],
@@ -185,25 +187,29 @@ export default function ProductDetailModal({ product, onClose }) {
               
               <section>
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Layers className="w-4 h-4" /> Packaging & Dimensions
+                  <Layers className="w-4 h-4" /> Packaging & Measurements
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
-                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase mb-1">Pieces / Box</p>
-                    <p className="text-lg font-black text-blue-900 dark:text-blue-100">{product.pieces_per_box || 1}</p>
-                  </div>
+                  {product.unit?.toLowerCase() !== 'bag' && (
+                    <div className="p-3 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase mb-1">Pieces / Box</p>
+                      <p className="text-lg font-black text-blue-900 dark:text-blue-100">{product.pieces_per_box || 1}</p>
+                    </div>
+                  )}
                   <div className="p-3 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase mb-1">Weight / Box</p>
-                    <p className="text-lg font-black text-amber-900 dark:text-amber-100">{product.weight_of_box || 0} <span className="text-xs font-bold">KG</span></p>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase mb-1">Unit Weight</p>
+                    <p className="text-lg font-black text-amber-900 dark:text-amber-100">{product.weight_of_unit || 0} <span className="text-xs font-bold">KG</span></p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/20">
-                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mb-1">Dimensions</p>
-                    <p className="text-sm font-black text-indigo-900 dark:text-indigo-100">{product.dimensions || 'N/A'}</p>
+                  <div className={`p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:indigo-900/20 ${product.unit?.toLowerCase() === 'bag' ? 'col-span-2' : ''}`}>
+                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mb-1">Measurements</p>
+                    <p className="text-sm font-black text-indigo-900 dark:text-indigo-100">{product.measurements || 'N/A'}</p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-900/20">
-                    <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mb-1">Loose Pieces</p>
-                    <p className="text-sm font-black text-slate-900 dark:text-slate-100">{product.ava_pieces || 0} PCS</p>
-                  </div>
+                  {product.unit?.toLowerCase() !== 'bag' && (
+                    <div className="p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-900/20">
+                      <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase mb-1">Loose Pieces</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{product.ava_pieces || 0} PCS</p>
+                    </div>
+                  )}
                 </div>
               </section>
 

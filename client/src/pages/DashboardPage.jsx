@@ -251,9 +251,9 @@ export default function DashboardPage() {
   const { settings } = useSettingsStore();
 
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod;
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
 
   useEffect(() => { 
     fetchSummary(); 

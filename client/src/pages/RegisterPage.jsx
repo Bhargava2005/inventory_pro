@@ -100,8 +100,13 @@ export default function RegisterPage() {
     const { confirmPassword, ...userData } = data;
     const result = await registerUser(userData);
     if (result.success) {
-      toast.success('Business Setup Complete! Welcome to Inventory Pro.');
-      navigate('/dashboard');
+      if (result.needsVerification) {
+        toast.success('Registration successful! Please verify your email.');
+        navigate(`/verify-email?email=${encodeURIComponent(result.email)}`);
+      } else {
+        toast.success('Business Setup Complete! Welcome to Inventory Pro.');
+        navigate('/dashboard');
+      }
     } else {
       setError('root', { message: result.message });
     }

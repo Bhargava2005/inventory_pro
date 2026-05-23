@@ -43,9 +43,9 @@ export default function SalesPage() {
   const { settings } = useSettingsStore();
   const isAdmin = user?.role === 'admin';
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod;
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
 
   // Debounce the search input (500 ms) so we don't fire on every keystroke
   useEffect(() => {
@@ -280,7 +280,7 @@ export default function SalesPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      generateInvoicePDF(s);
+                      generateInvoicePDF(s, { hidePrice, hideTax, hidePaymentMethod: hidePayment });
                     }}
                     className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-all touch-target"
                     title="Download Invoice"

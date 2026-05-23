@@ -25,6 +25,14 @@ const useAuthStore = create(
           return { success: true };
         } catch (error) {
           set({ isLoading: false });
+          if (error.response?.data?.needsVerification) {
+            return {
+              success: false,
+              needsVerification: true,
+              email: error.response.data.email,
+              message: error.message
+            };
+          }
           return { success: false, message: error.message };
         }
       },
@@ -34,6 +42,10 @@ const useAuthStore = create(
         set({ isLoading: true });
         try {
           const { data } = await authAPI.register(userData);
+          if (data.needsVerification) {
+            set({ isLoading: false });
+            return { success: true, needsVerification: true, email: data.email };
+          }
           localStorage.setItem('token', data.token);
           set({
             user: data.user,
@@ -42,6 +54,38 @@ const useAuthStore = create(
             isLoading: false,
           });
           return { success: true };
+        } catch (error) {
+          set({ isLoading: false });
+          return { success: false, message: error.message };
+        }
+      },
+
+      // Verify Email action
+      verifyEmail: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await authAPI.verifyEmail({ email, otp });
+          localStorage.setItem('token', data.token);
+          set({
+            user: data.user,
+            token: data.token,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return { success: true };
+        } catch (error) {
+          set({ isLoading: false });
+          return { success: false, message: error.message };
+        }
+      },
+
+      // Resend Verification action
+      resendVerification: async (email) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await authAPI.resendVerification({ email });
+          set({ isLoading: false });
+          return { success: true, message: data.message };
         } catch (error) {
           set({ isLoading: false });
           return { success: false, message: error.message };

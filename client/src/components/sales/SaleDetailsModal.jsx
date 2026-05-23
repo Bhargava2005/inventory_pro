@@ -22,9 +22,9 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   const isOwner = soldById === user?.id;
   
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod;
+  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
+  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
+  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
   
   if (!sale) return null;
 
@@ -102,7 +102,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-4">
               <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <User className="w-3 h-3 text-primary-500" /> Customer Information
+                <User className="w-3 h-3 text-primary-500" /> Dispatch Information
               </h3>
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700">
                 <p className="font-bold text-gray-900 dark:text-white">{sale.customer?.name || 'Walk-in Customer'}</p>
@@ -133,7 +133,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{sale.storeId?.name || 'Main Branch'}</p>
                 <div className="mt-2 space-y-1">
-                  <p className="text-xs text-gray-500">Sold by: <span className="font-semibold text-primary-600">{sale.soldBy?.fullName || 'System Admin'}</span></p>
+                  <p className="text-xs text-gray-500">Delivered by: <span className="font-semibold text-primary-600">{sale.soldBy?.fullName || 'System Admin'}</span></p>
                   {sale.soldBy?.username && (
                     <p className="text-[10px] text-gray-400">Staff ID: <span className="font-medium text-gray-600 dark:text-gray-400">{sale.soldBy.username}</span></p>
                   )}
@@ -204,7 +204,6 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-800">
                     <th className="text-left px-6 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Product Details</th>
-                    <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Dim.</th>
                     <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Status</th>
                     <th className="text-center px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Qty</th>
                     {!hidePrice && <th className="text-right px-4 py-4 font-bold text-gray-600 dark:text-gray-400 uppercase text-[10px]">Price</th>}
@@ -239,8 +238,8 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                               )}
                               {(() => {
                                 const ppb = item.product?.pieces_per_box || 1;
-                                const weightPerBox = item.product?.weight_of_box || 0;
-                                const calculatedWeight = item.weight || ( (item.quantity * weightPerBox) + (item.pieces * (weightPerBox / ppb)) );
+                                const weightPerUnit = item.product?.weight_of_unit || 0;
+                                const calculatedWeight = item.weight || ( (item.quantity * weightPerUnit) + (item.pieces * (weightPerUnit / ppb)) );
                                 return calculatedWeight > 0 ? (
                                   <span className="text-[9px] md:text-[10px] text-amber-600 font-medium px-1.5 py-0.5 bg-amber-50 dark:bg-amber-900/20 rounded">
                                     {calculatedWeight.toFixed(2)} KG
@@ -250,11 +249,6 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                             </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className="text-[10px] font-mono text-gray-500 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">
-                          {item.product?.dimensions || '—'}
-                        </span>
                       </td>
                       <td className="px-4 py-4 text-center">
                         <div className="flex flex-col items-center gap-2">
@@ -324,12 +318,28 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
                       </td>
                       <td className="px-4 py-4 text-center font-bold text-gray-700 dark:text-gray-300">
                         <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-sm font-black">{item.quantity || 0} B + {item.pieces || 0} P</span>
-                          {(item.product?.pieces_per_box > 1) && (
-                            <span className="text-[10px] text-gray-400 font-medium">
-                              {item.product.pieces_per_box} Pieces/Box
-                            </span>
-                          )}
+                          {(() => {
+                            const unit = (item.product?.unit || 'box').toLowerCase();
+                            const isBag = unit === 'bag';
+                            const unitInitial = unit.charAt(0).toUpperCase();
+                            if (isBag) {
+                              return <span className="text-sm font-black">{item.quantity || 0} {unitInitial}</span>;
+                            }
+                            return <span className="text-sm font-black">{item.quantity || 0} {unitInitial} + {item.pieces || 0} P</span>;
+                          })()}
+                          {(() => {
+                            const unit = (item.product?.unit || 'box').toLowerCase();
+                            const isBag = unit === 'bag';
+                            const ppb = item.product?.pieces_per_box || 1;
+                            if (!isBag && ppb > 1) {
+                              return (
+                                <span className="text-[10px] text-gray-400 font-medium">
+                                  {ppb} Pieces/Box
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </td>
                       {!hidePrice && (

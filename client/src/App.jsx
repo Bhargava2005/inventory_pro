@@ -24,6 +24,7 @@ import SettingsPage from './pages/SettingsPage.jsx';
 import EmployeeBehaviorPage from './pages/EmployeeBehaviorPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import StaffHomePage from './pages/StaffHomePage.jsx';
+import VerifyEmailPage from './pages/VerifyEmailPage.jsx';
 
 export default function App() {
   const { theme } = useThemeStore();
@@ -56,6 +57,7 @@ export default function App() {
         {/* Public / guest-only routes */}
         <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+        <Route path="/verify-email" element={<GuestRoute><VerifyEmailPage /></GuestRoute>} />
 
         {/* Protected routes — all wrapped in AppLayout sidebar */}
         <Route

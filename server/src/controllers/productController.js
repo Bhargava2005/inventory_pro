@@ -20,22 +20,33 @@ export const getProducts = async (req, res, next) => {
     }
 
     if (search) {
-      // Fuzzy search: split search string into words and
-      // create a subsequence regex for each word.
-      // This allows matching even if characters are skipped (e.g., "apl" matches "apple").
-      const tokens = search.trim().split(/\s+/).filter(Boolean);
-      query.$and = tokens.map(token => {
-        const fuzzyPattern = token.split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
-        
-        return {
-          $or: [
-            { name: { $regex: fuzzyPattern, $options: 'i' } },
-            { sku: { $regex: fuzzyPattern, $options: 'i' } },
-            { brand: { $regex: fuzzyPattern, $options: 'i' } },
-            { supplier: { $regex: fuzzyPattern, $options: 'i' } },
-          ],
-        };
+      const q = search.trim();
+      
+      // 1. Check for exact SKU match (Highest priority)
+      const exactMatch = await Product.findOne({ 
+        sku: { $regex: new RegExp(`^${q}$`, 'i') }, 
+        storeId: req.user.storeId, 
+        isActive: true 
       });
+
+      if (exactMatch) {
+        query._id = exactMatch._id;
+      } else {
+        // 2. Fallback to fuzzy search
+        const tokens = q.split(/\s+/).filter(Boolean);
+        query.$and = tokens.map(token => {
+          const fuzzyPattern = token.split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+          
+          return {
+            $or: [
+              { name: { $regex: fuzzyPattern, $options: 'i' } },
+              { sku: { $regex: fuzzyPattern, $options: 'i' } },
+              { brand: { $regex: fuzzyPattern, $options: 'i' } },
+              { supplier: { $regex: fuzzyPattern, $options: 'i' } },
+            ],
+          };
+        });
+      }
     }
 
     if (category && category !== 'all') query.category = category;
@@ -146,11 +157,11 @@ export const createProduct = async (req, res, next) => {
       name, category, description, price, costPrice, quantity, minStockLevel, 
       unit, supplier, sku, branchId, brand, image, color,
       damagedStock, sampleStock, exchangedStock, wrongProductStock,
-      pieces_per_box, ava_pieces, weight_of_box, dimensions
+      pieces_per_box, ava_pieces, weight_of_unit, measurements
     } = req.body;
 
-    // Auto-extract dimensions from name if not provided
-    const finalDimensions = dimensions || (name ? (name.match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : '');
+    // Auto-extract measurements from name if not provided
+    const finalMeasurements = measurements || (name ? (name.match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : '');
 
     // Verify category belongs to this store
     if (category) {
@@ -169,8 +180,8 @@ export const createProduct = async (req, res, next) => {
       wrongProductStock: wrongProductStock || 0,
       pieces_per_box: pieces_per_box || 1,
       ava_pieces: ava_pieces || 0,
-      weight_of_box: weight_of_box || 0,
-      dimensions: finalDimensions,
+      weight_of_unit: weight_of_unit || 0,
+      measurements: finalMeasurements,
       createdBy: req.user.id,
       storeId: req.user.storeId,
       branchId: assignedBranchId || null
@@ -206,7 +217,7 @@ export const updateProduct = async (req, res, next) => {
       name, category, description, price, costPrice, quantity, minStockLevel, 
       unit, supplier, brand, image, color,
       damagedStock, sampleStock, exchangedStock, wrongProductStock,
-      pieces_per_box, ava_pieces, weight_of_box, dimensions
+      pieces_per_box, ava_pieces, weight_of_unit, measurements
     } = req.body;
 
     const targetProduct = await Product.findById(req.params.id);
@@ -227,8 +238,8 @@ export const updateProduct = async (req, res, next) => {
         damagedStock, sampleStock, exchangedStock, wrongProductStock,
         pieces_per_box: pieces_per_box ?? targetProduct.pieces_per_box,
         ava_pieces: ava_pieces ?? targetProduct.ava_pieces,
-        weight_of_box: weight_of_box ?? targetProduct.weight_of_box,
-        dimensions: dimensions ?? (name ? (name.match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : targetProduct.dimensions),
+        weight_of_unit: weight_of_unit ?? targetProduct.weight_of_unit,
+        measurements: measurements ?? (name ? (name.match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : targetProduct.measurements),
       },
       { new: true, runValidators: true }
     ).populate('category', 'name color');
@@ -409,8 +420,8 @@ export const importProducts = async (req, res, next) => {
         // Piece-selling fields from import
         pieces_per_box: Number(item.pieces_per_box) || 1,
         ava_pieces: Number(item.ava_pieces) || 0,
-        weight_of_box: Number(item.weight_of_box) || 0,
-        dimensions: item.dimensions || (item.name ? (item.name.toString().match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : ''),
+        weight_of_unit: Number(item.weight_of_unit) || 0,
+        measurements: item.measurements || (item.name ? (item.name.toString().match(/(\d+(?:\.\d+)?\s*[xX*]\s*\d+(?:\.\d+)?(?:\s*[xX*]\s*\d+(?:\.\d+)?)?)/)?.[0]?.replace(/\s+/g, '') || '') : ''),
         createdBy: req.user.id,
         storeId: req.user.storeId,
         branchId: req.user.role === 'admin' ? (req.body.branchId || item.branchId) : req.user.branchId
