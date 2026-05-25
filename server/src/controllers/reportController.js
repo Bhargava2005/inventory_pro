@@ -300,7 +300,8 @@ export const getAnalysisData = async (req, res, next) => {
       },
       { 
         $sort: { 
-          [sortByField === 'name' || sortByField === 'sku' ? '_id' : sortByField]: parseInt(sortByDir) || -1 
+          [sortByField === 'name' || sortByField === 'sku' ? '_id' : sortByField]: parseInt(sortByDir) || -1,
+          _id: 1
         } 
       },
       {
@@ -328,7 +329,18 @@ export const getAnalysisData = async (req, res, next) => {
           wrongProductCount: { $sum: { $cond: ['$items.isWrongProduct', '$items.quantity', 0] } },
         }
       },
-      { $sort: { [sortByField]: parseInt(sortByDir) || -1 } },
+      {
+        $addFields: {
+          isPriority: {
+            $cond: {
+              if: { $in: ['$_id', (ids || []).map(id => new mongoose.Types.ObjectId(String(id)))] },
+              then: 1,
+              else: 0
+            }
+          }
+        }
+      },
+      { $sort: { isPriority: -1, [sortByField]: parseInt(sortByDir) || -1, _id: 1 } },
       {
         $facet: {
           metadata: [{ $count: 'total' }],
@@ -491,7 +503,8 @@ export const exportAnalysisExcel = async (req, res, next) => {
         },
         { 
           $sort: { 
-            [sortByField === 'name' || sortByField === 'sku' ? '_id' : sortByField]: parseInt(sortByDir) || -1 
+            [sortByField === 'name' || sortByField === 'sku' ? '_id' : sortByField]: parseInt(sortByDir) || -1,
+            _id: 1
           } 
         }
       ]),
@@ -511,7 +524,7 @@ export const exportAnalysisExcel = async (req, res, next) => {
             wrongProductCount: { $sum: { $cond: ['$items.isWrongProduct', '$items.quantity', 0] } },
           }
         },
-        { $sort: { [sortByField]: parseInt(sortByDir) || -1 } }
+        { $sort: { [sortByField]: parseInt(sortByDir) || -1, _id: 1 } }
       ])
     ]);
 
