@@ -80,14 +80,14 @@ export default function AnalysisTable({
                 {type === 'product' && (
                   <th 
                     onClick={() => handleSort('sku')}
-                    className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-32 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                    className="px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[120px] md:w-32 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <div className="flex items-center gap-1">SKU <SortIcon field="sku" /></div>
                   </th>
                 )}
                 <th 
                   onClick={() => handleSort(type === 'product' ? 'name' : '_id')}
-                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[180px] md:min-w-0 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {type === 'product' ? 'Product Name' : 'Date / Period'} <SortIcon field={type === 'product' ? 'name' : '_id'} />
@@ -157,7 +157,7 @@ export default function AnalysisTable({
                     )}
                     {type === 'product' && (
                       <td className="px-4 py-4">
-                        <span className="text-xs font-mono font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/20 px-2 py-1 rounded">
+                        <span className="text-[10px] md:text-xs font-mono font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/20 px-2 py-1 rounded whitespace-nowrap">
                           {row.sku || 'N/A'}
                         </span>
                       </td>

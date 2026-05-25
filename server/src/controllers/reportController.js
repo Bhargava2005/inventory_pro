@@ -549,6 +549,7 @@ export const exportAnalysisExcel = async (req, res, next) => {
     if (includeProduct === 'true') {
       const productSheet = workbook.addWorksheet('Product Analysis');
       productSheet.columns = [
+        { header: 'SKU', key: 'sku', width: 15 },
         { header: 'Product Name', key: 'name', width: 30 },
         { header: 'Units Sold', key: 'unitSalesCount', width: 12 },
         { header: 'Pieces Sold', key: 'pieceSalesCount', width: 12 },
@@ -561,6 +562,7 @@ export const exportAnalysisExcel = async (req, res, next) => {
       productSheet.getRow(1).font = { bold: true };
       productData.forEach(d => {
         productSheet.addRow({
+          sku: d.sku || 'N/A',
           name: d.name || 'Unknown Product',
           unitSalesCount: d.unitSalesCount,
           pieceSalesCount: d.pieceSalesCount,
@@ -582,3 +584,4 @@ export const exportAnalysisExcel = async (req, res, next) => {
     next(error);
   }
 };
+// restart trigger

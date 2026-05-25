@@ -40,6 +40,7 @@ export default function EmployeeBehaviorPage() {
   const navigate = useNavigate();
 
   const { user, isAdmin } = useAuthStore();
+  const isStaff = user?.role === 'staff';
   const { branches, fetchBranches } = useBranchStore();
 
   const now = new Date();
@@ -106,13 +107,15 @@ export default function EmployeeBehaviorPage() {
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Mobile back button — returns to Staff Management */}
       <div className="md:hidden flex items-center gap-3">
-        <button
-          onClick={() => navigate('/users')}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-sm font-semibold"
-        >
-          <ArrowLeft size={16} />
-          Staff
-        </button>
+        {!isStaff && (
+          <button
+            onClick={() => navigate('/users')}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 dark:hover:text-violet-400 transition-all text-sm font-semibold"
+          >
+            <ArrowLeft size={16} />
+            Staff
+          </button>
+        )}
         <h1 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <Brain className="w-5 h-5 text-primary-600" />
           Employee Behavior
@@ -172,7 +175,7 @@ export default function EmployeeBehaviorPage() {
                 onChange={(e) => setDateRange((p) => ({ ...p, endDate: e.target.value }))} />
             </div>
 
-            {user?.role !== 'staff' && (
+            {!isStaff && (
               <button
                 onClick={() => setShowExport(true)}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
@@ -187,7 +190,7 @@ export default function EmployeeBehaviorPage() {
 
       <div className={`${showMobileStats ? 'block' : 'hidden'} md:block space-y-6`}>
         {/* Search bar */}
-        {user?.role !== 'staff' && (
+        {!isStaff && (
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
