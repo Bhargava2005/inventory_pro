@@ -559,7 +559,9 @@ export default function NewSalePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{p.name}</p>
-                    <p className="text-[10px] text-gray-400">{p.sku} · {p.quantity} in stock</p>
+                    <p className="text-[10px] text-gray-400">
+                      {p.sku} · {p.quantity} in stock {p.pieces_per_box > 1 && `· ${p.pieces_per_box} Pcs/Box`}
+                    </p>
                   </div>
                   {!hidePrice && <span className="text-sm font-black text-primary-600">₹{p.price?.toLocaleString('en-IN')}</span>}
                 </button>
@@ -594,6 +596,12 @@ export default function NewSalePage() {
                     <div className="bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
                       <Package className="w-3.5 h-3.5 text-green-500" />
                       <span>{pickerProduct.ava_pieces} Loose Pcs</span>
+                    </div>
+                  )}
+                  {pickerProduct.pieces_per_box > 1 && (
+                    <div className="bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-violet-500" />
+                      <span>{pickerProduct.pieces_per_box} Pcs / Box</span>
                     </div>
                   )}
                   {pickerProduct.measurements && (
