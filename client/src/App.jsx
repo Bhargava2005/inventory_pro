@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import useThemeStore from './store/themeStore.js';
+import useAuthStore from './store/authStore.js';
 import { ProtectedRoute, GuestRoute, RoleRoute } from './components/auth/ProtectedRoute.jsx';
 import AppLayout from './components/layout/AppLayout.jsx';
 import NetworkStatus from './components/layout/NetworkStatus.jsx';
 import Heartbeat from './components/auth/Heartbeat.jsx';
+import SplashScreen from './components/common/SplashScreen.jsx';
 
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
@@ -28,10 +30,36 @@ import VerifyEmailPage from './pages/VerifyEmailPage.jsx';
 
 export default function App() {
   const { theme } = useThemeStore();
+  const { isAuthenticated, user } = useAuthStore();
+  
+  // Only show splash if it hasn't been shown in this SESSION
+  const [showSplash, setShowSplash] = useState(() => {
+    return !sessionStorage.getItem('splash_shown');
+  });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  useEffect(() => {
+    if (showSplash) {
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+        sessionStorage.setItem('splash_shown', 'true');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSplash]);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
+
+  // Enhanced PWA detection
+  const isPWA = 
+    window.matchMedia('(display-mode: standalone)').matches || 
+    window.navigator.standalone === true ||
+    window.location.search.includes('mode=standalone');
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -167,8 +195,15 @@ export default function App() {
           }
         />
 
-        {/* Landing Page */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Landing Page - Redirect if PWA and Authenticated */}
+        <Route 
+          path="/" 
+          element={
+            (isAuthenticated && isPWA) 
+              ? <Navigate to={user?.role === 'staff' ? "/staff-home" : "/dashboard"} replace /> 
+              : <LandingPage />
+          } 
+        />
 
         {/* Default redirect for unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />

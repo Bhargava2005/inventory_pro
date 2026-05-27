@@ -50,7 +50,7 @@ export const getProducts = async (req, res, next) => {
     }
 
     if (category && category !== 'all') query.category = category;
-    if (brand) query.brand = brand;
+    if (brand && brand !== 'all') query.brand = brand;
 
     if (status === 'low') {
       query.$expr = {

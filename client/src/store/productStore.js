@@ -10,6 +10,7 @@ const useProductStore = create((set, get) => ({
   totalPages: 1,
   page: 1,
   isLoading: false,
+  isLoadingMore: false,
   isSubmitting: false,
   filters: { search: '', category: 'all', sort: '-createdAt', status: '', branchId: '' },
 
@@ -21,18 +22,48 @@ const useProductStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const { filters, page } = get();
-      const params = { ...filters, page, limit: 12, ...overrideParams };
+      const params = { ...filters, page: 1, limit: 12, ...overrideParams };
+      if (overrideParams.page) params.page = overrideParams.page;
+      
       if (!params.status) delete params.status;
       if (params.category === 'all') delete params.category;
+      if (params.brand === 'all') delete params.brand;
+      
       const { data } = await productAPI.getAll(params);
       set({
         products: data.data,
         total: data.total,
         totalPages: data.totalPages || 1,
+        page: params.page,
         isLoading: false,
       });
     } catch {
       set({ isLoading: false });
+    }
+  },
+
+  fetchMoreProducts: async (overrideParams = {}) => {
+    const { products, page, totalPages, isLoadingMore, isLoading } = get();
+    if (page >= totalPages || isLoadingMore || isLoading) return;
+    
+    set({ isLoadingMore: true });
+    try {
+      const nextPage = page + 1;
+      const { filters } = get();
+      const params = { ...filters, page: nextPage, limit: 12, ...overrideParams };
+      
+      if (!params.status) delete params.status;
+      if (params.category === 'all') delete params.category;
+      if (params.brand === 'all') delete params.brand;
+      
+      const { data } = await productAPI.getAll(params);
+      set({
+        products: [...products, ...data.data],
+        page: nextPage,
+        isLoadingMore: false,
+      });
+    } catch {
+      set({ isLoadingMore: false });
     }
   },
 
