@@ -40,6 +40,7 @@ const settingSchema = new mongoose.Schema(
       hideStaffPriceDetails: { type: Boolean, default: true },
       hideStaffTaxDetails: { type: Boolean, default: true },
       hideStaffPaymentMethod: { type: Boolean, default: true },
+      hideAllFinancialDetails: { type: Boolean, default: false },
     },
   },
   {

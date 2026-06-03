@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Download, User, Calendar, MapPin, CreditCard, ShoppingBag, AlertTriangle, RefreshCw, Box, Gift, FileText, Smartphone, Loader2, Edit3, Check, MessageSquare, History, Package } from 'lucide-react';
 import { generateInvoicePDF } from '../../utils/pdfGenerator.js';
 import useSaleStore from '../../store/saleStore.js';
@@ -10,9 +10,13 @@ import toast from 'react-hot-toast';
 export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   const { updateSaleItem, isSubmitting } = useSaleStore();
   const { user } = useAuthStore();
-  const { settings } = useSettingsStore();
+  const { settings, fetchSettings } = useSettingsStore();
   const { fetchProducts } = useProductStore();
   const [sale, setSale] = useState(initialSale);
+
+  useEffect(() => {
+    if (!settings) fetchSettings();
+  }, [settings]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editingItem, setEditingItem] = useState(null); // { id, ...data }
   const [viewingHistory, setViewingHistory] = useState(null); // itemId
@@ -22,9 +26,9 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
   const isOwner = soldById === user?.id;
   
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
+  const hidePrice = (isStaff && settings?.privacy?.hideStaffPriceDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hideTax = (isStaff && settings?.privacy?.hideStaffTaxDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hidePayment = (isStaff && settings?.privacy?.hideStaffPaymentMethod !== false) || settings?.privacy?.hideAllFinancialDetails;
   
   if (!sale) return null;
 
@@ -71,7 +75,7 @@ export default function SaleDetailsModal({ sale: initialSale, onClose }) {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{sale.invoiceNumber}</h2>
-              <p className="text-[10px] text-primary-600 font-bold uppercase tracking-widest">Tax Invoice</p>
+
             </div>
           </div>
           

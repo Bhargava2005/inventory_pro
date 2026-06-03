@@ -53,9 +53,9 @@ export default function NewSalePage() {
   const [discountAmount, setDiscountAmount] = useState(0);
 
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
-  const hidePaymentMethod = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
+  const hidePrice = (isStaff && settings?.privacy?.hideStaffPriceDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hideTax = (isStaff && settings?.privacy?.hideStaffTaxDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hidePaymentMethod = (isStaff && settings?.privacy?.hideStaffPaymentMethod !== false) || settings?.privacy?.hideAllFinancialDetails;
 
   useEffect(() => {
     fetchCategories(); fetchBrands(); fetchProducts({ limit: 50 });

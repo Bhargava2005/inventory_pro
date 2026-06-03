@@ -40,12 +40,12 @@ export default function SalesPage() {
 
   const { branches, fetchBranches } = useBranchStore();
   const { user } = useAuthStore();
-  const { settings } = useSettingsStore();
+  const { settings, fetchSettings } = useSettingsStore();
   const isAdmin = user?.role === 'admin';
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
+  const hidePrice = (isStaff && settings?.privacy?.hideStaffPriceDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hideTax = (isStaff && settings?.privacy?.hideStaffTaxDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hidePayment = (isStaff && settings?.privacy?.hideStaffPaymentMethod !== false) || settings?.privacy?.hideAllFinancialDetails;
 
   // Debounce the search input (500 ms) so we don't fire on every keystroke
   useEffect(() => {
@@ -60,7 +60,8 @@ export default function SalesPage() {
 
   useEffect(() => {
     if (isAdmin) fetchBranches();
-  }, [isAdmin]);
+    if (!settings) fetchSettings();
+  }, [isAdmin, settings]);
 
   // Fetch whenever page or filters change
   useEffect(() => {

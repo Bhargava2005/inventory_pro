@@ -589,6 +589,22 @@ export default function SettingsPage({ hideHeader }) {
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
                       </label>
                     </div>
+
+                    <div className="flex items-center justify-between p-4 bg-primary-50/50 dark:bg-primary-900/10 rounded-2xl border border-primary-100/50 dark:border-primary-900/20">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">Hide Financial Details for All Roles</p>
+                        <p className="text-xs text-gray-500">If enabled, payment and price details will be hidden for ALL users (including Admin/Manager).</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={formData.privacy?.hideAllFinancialDetails ?? false}
+                          onChange={(e) => handleInputChange('privacy', 'hideAllFinancialDetails', e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}

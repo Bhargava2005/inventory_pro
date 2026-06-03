@@ -1,10 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Package, TrendingDown, AlertTriangle, DollarSign, Store, ShoppingCart, Plus, FileUp, FileText, ArrowRight, Loader2, FileDown, Eye, ClipboardList, Clock, User as UserIcon, X, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore.js';
 import useDashboardStore from '../store/dashboardStore.js';
 import { generateInvoicePDF, generateMismatchReportPDF } from '../utils/pdfGenerator.js';
-import { useState } from 'react';
 import useProductStore from '../store/productStore.js';
 import useSettingsStore from '../store/settingsStore.js';
 import BannerDisplay from '../components/dashboard/BannerDisplay.jsx';
@@ -248,17 +247,18 @@ export default function DashboardPage() {
   const { products, fetchProducts } = useProductStore();
   const [showInspection, setShowInspection] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
-  const { settings } = useSettingsStore();
+  const { settings, fetchSettings } = useSettingsStore();
 
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
-  const hideTax = isStaff && settings?.privacy?.hideStaffTaxDetails !== false;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
+  const hidePrice = (isStaff && settings?.privacy?.hideStaffPriceDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hideTax = (isStaff && settings?.privacy?.hideStaffTaxDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hidePayment = (isStaff && settings?.privacy?.hideStaffPaymentMethod !== false) || settings?.privacy?.hideAllFinancialDetails;
 
   useEffect(() => { 
     fetchSummary(); 
     fetchProducts({ limit: 100 }); // Pre-fetch first batch for inspection
-  }, []);
+    if (!settings) fetchSettings();
+  }, [settings]);
 
   if (isLoading || !summary) {
     return (

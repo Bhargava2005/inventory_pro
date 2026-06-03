@@ -94,11 +94,9 @@ export const generateInvoicePDF = (sale, options = {}) => {
     doc.setFont('helvetica', 'bold');
     doc.text('Dispatch Details List', 14, 22);
 
-    doc.setFontSize(14);
-    doc.setTextColor(30);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TAX INVOICE', 140, 22);
+
     
+    doc.setTextColor(30);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     let headerY = 28;

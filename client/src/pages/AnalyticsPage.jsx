@@ -66,10 +66,10 @@ export default function AnalyticsPage() {
     sortBy, setSortBy,
     page, setPage
   } = useAnalyticsStore();
-  const { settings } = useSettingsStore();
+  const { settings, fetchSettings } = useSettingsStore();
   
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails;
+  const hidePrice = (isStaff && settings?.privacy?.hideStaffPriceDetails) || settings?.privacy?.hideAllFinancialDetails;
   
   const [isExporting, setIsExporting] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(null); 
@@ -81,7 +81,8 @@ export default function AnalyticsPage() {
       fetchBranches();
     }
     fetchCategories();
-  }, [user]);
+    if (!settings) fetchSettings();
+  }, [user, settings]);
 
   useEffect(() => {
     fetchBrands(selectedBranch ? { branchId: selectedBranch } : {});

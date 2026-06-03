@@ -59,11 +59,11 @@ const KpiTile = ({ label, value, color, icon: Icon }) => (
 const TABS = ['Sales History', 'Incidents', 'Attendance'];
 
 export default function EmployeeDetailDrawer({ employee, onClose }) {
-  const { settings } = useSettingsStore();
+  const { settings, fetchSettings } = useSettingsStore();
   const { user } = useAuthStore();
   const isStaff = user?.role === 'staff';
-  const hidePrice = isStaff && settings?.privacy?.hideStaffPriceDetails !== false;
-  const hidePayment = isStaff && settings?.privacy?.hideStaffPaymentMethod !== false;
+  const hidePrice = (isStaff && settings?.privacy?.hideStaffPriceDetails !== false) || settings?.privacy?.hideAllFinancialDetails;
+  const hidePayment = (isStaff && settings?.privacy?.hideStaffPaymentMethod !== false) || settings?.privacy?.hideAllFinancialDetails;
 
   const [activePreset, setActivePreset] = useState('month');
   const [customDates, setCustomDates] = useState({ startDate: '', endDate: '' });
@@ -103,8 +103,9 @@ export default function EmployeeDetailDrawer({ employee, onClose }) {
     if (!employee) return;
     if (activePreset === 'custom') return;
     loadDetail(1);
+    if (!settings) fetchSettings();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employee, activePreset]);
+  }, [employee, activePreset, settings]);
 
   const applyPreset = (key) => {
     setActivePreset(key);
