@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { 
-  Search, ShoppingCart, Package, ShieldCheck, 
-  LayoutDashboard, ArrowRight, Loader2, Box, 
+import {
+  Search, ShoppingCart, Package, ShieldCheck,
+  LayoutDashboard, ArrowRight, Loader2, Box,
   Scale, Maximize, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -11,19 +11,19 @@ import useSettingsStore from '../store/settingsStore.js';
 
 export default function StaffHomePage() {
   const { user } = useAuthStore();
-  const { 
-    products, 
-    isLoading, 
-    fetchProducts, 
-    fetchCategories, 
-    fetchBrands, 
-    categories: storeCategories, 
+  const {
+    products,
+    isLoading,
+    fetchProducts,
+    fetchCategories,
+    fetchBrands,
+    categories: storeCategories,
     brands,
     page,
     totalPages
   } = useProductStore();
   const { settings } = useSettingsStore();
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
@@ -48,12 +48,12 @@ export default function StaffHomePage() {
     }
 
     const timer = setTimeout(() => {
-      fetchProducts({ 
-        search: searchQuery, 
-        category: selectedCategory, 
+      fetchProducts({
+        search: searchQuery,
+        category: selectedCategory,
         brand: selectedBrand,
         limit: 20,
-        page: 1 
+        page: 1
       });
     }, 400);
 
@@ -62,12 +62,12 @@ export default function StaffHomePage() {
 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
-    fetchProducts({ 
-      search: searchQuery, 
-      category: selectedCategory, 
+    fetchProducts({
+      search: searchQuery,
+      category: selectedCategory,
       brand: selectedBrand,
       limit: 20,
-      page: newPage 
+      page: newPage
     });
     // Scroll to filters top for better UX
     window.scrollTo({ top: 300, behavior: 'smooth' });
@@ -94,8 +94,8 @@ export default function StaffHomePage() {
       </div>
 
       {/* New Voucher Button */}
-      <Link 
-        to="/pos" 
+      <Link
+        to="/pos"
         className="group relative flex items-center gap-4 p-6 rounded-[2rem] bg-white dark:bg-gray-900 border-2 border-primary-100 dark:border-primary-900/30 hover:border-primary-500 transition-all overflow-hidden shadow-sm hover:shadow-xl"
       >
         <div className="absolute -right-4 -bottom-4 p-8 text-primary-500/10 group-hover:scale-110 transition-transform">
@@ -105,7 +105,7 @@ export default function StaffHomePage() {
           <ShoppingCart className="w-7 h-7" />
         </div>
         <div className="relative z-10 flex-1">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Voucher</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Harshitha Voucher</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
             Start a new transaction and process payments quickly.
           </p>
@@ -155,7 +155,7 @@ export default function StaffHomePage() {
               ))}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
             </div>
           </div>
 
@@ -172,7 +172,7 @@ export default function StaffHomePage() {
               })}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
             </div>
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function StaffHomePage() {
                   : "It looks like there are no products in this branch yet."}
               </p>
               {(searchQuery || selectedCategory !== 'all' || selectedBrand !== 'all') && (
-                <button 
+                <button
                   onClick={() => {
                     setSearchQuery('');
                     setSelectedCategory('all');
@@ -217,11 +217,10 @@ export default function StaffHomePage() {
                   <button
                     key={p._id}
                     onClick={() => setSelectedProduct(selectedProduct?._id === p._id ? null : p)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                      selectedProduct?._id === p._id
+                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${selectedProduct?._id === p._id
                         ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 shadow-md'
                         : 'border-transparent bg-white dark:bg-gray-900 hover:border-primary-200 shadow-sm'
-                    }`}
+                      }`}
                   >
                     <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden flex-shrink-0 flex items-center justify-center">
                       {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-gray-300" />}
