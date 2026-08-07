@@ -175,7 +175,7 @@ export default function NewSalePage() {
           <div className="w-16 h-16 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-primary-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">New Voucher</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Harshitha Voucher</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Select the voucher type to continue</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
@@ -215,7 +215,7 @@ export default function NewSalePage() {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">New Voucher</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Harshitha Voucher</h1>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ backgroundColor: typeInfo.color + '22', color: typeInfo.color }}>
               {typeInfo.label}
             </span>
