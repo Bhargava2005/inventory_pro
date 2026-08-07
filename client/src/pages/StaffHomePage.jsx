@@ -105,7 +105,7 @@ export default function StaffHomePage() {
           <ShoppingCart className="w-7 h-7" />
         </div>
         <div className="relative z-10 flex-1">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Harshitha Voucher</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Voucher</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
             Start a new transaction and process payments quickly.
           </p>
@@ -218,8 +218,8 @@ export default function StaffHomePage() {
                     key={p._id}
                     onClick={() => setSelectedProduct(selectedProduct?._id === p._id ? null : p)}
                     className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${selectedProduct?._id === p._id
-                        ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 shadow-md'
-                        : 'border-transparent bg-white dark:bg-gray-900 hover:border-primary-200 shadow-sm'
+                      ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 shadow-md'
+                      : 'border-transparent bg-white dark:bg-gray-900 hover:border-primary-200 shadow-sm'
                       }`}
                   >
                     <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden flex-shrink-0 flex items-center justify-center">
