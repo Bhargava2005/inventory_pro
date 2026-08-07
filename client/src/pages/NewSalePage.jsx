@@ -86,12 +86,12 @@ export default function NewSalePage() {
 
   const filteredProducts = useMemo(() => {
     let list = products;
-    
+
     // Category filter
     if (pickerCategory && pickerCategory !== 'all') {
       list = list.filter(p => p.category === pickerCategory || p.category?._id === pickerCategory || p.category?.name === pickerCategory);
     }
-    
+
     // Brand filter
     if (pickerBrand && pickerBrand !== 'all') {
       list = list.filter(p => {
@@ -99,12 +99,12 @@ export default function NewSalePage() {
         return pBrand === pickerBrand;
       });
     }
-    
+
     // Search query
     if (pickerSearch.trim()) {
       list = searchProducts(list, pickerSearch);
     }
-    
+
     return list;
   }, [pickerSearch, pickerCategory, pickerBrand, products]);
 
@@ -264,7 +264,7 @@ export default function NewSalePage() {
             <InvoiceField icon={Calendar} label="Voucher Date" value={invoiceDate} readOnly />
           </div>
         </div>
-
+ 
         {/* Products Table */}
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-800 pb-2">
@@ -305,12 +305,11 @@ export default function NewSalePage() {
                             const isActive = item[flag];
                             if (!isActive) return null;
                             return (
-                              <span key={flag} className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                                flag === 'isSelling' ? 'bg-primary-50 text-primary-700 border border-primary-200/50' :
-                                flag === 'isSample' ? 'bg-green-50 text-green-700 border border-green-200/50' :
-                                flag === 'isDamaged' ? 'bg-red-50 text-red-700 border border-red-200/50' :
-                                'bg-purple-50 text-purple-700 border border-purple-200/50'
-                              }`}>
+                              <span key={flag} className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${flag === 'isSelling' ? 'bg-primary-50 text-primary-700 border border-primary-200/50' :
+                                  flag === 'isSample' ? 'bg-green-50 text-green-700 border border-green-200/50' :
+                                    flag === 'isDamaged' ? 'bg-red-50 text-red-700 border border-red-200/50' :
+                                      'bg-purple-50 text-purple-700 border border-purple-200/50'
+                                }`}>
                                 {labels[flag]}
                               </span>
                             );
@@ -520,7 +519,7 @@ export default function NewSalePage() {
                     ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                   </div>
                 </div>
 
@@ -537,7 +536,7 @@ export default function NewSalePage() {
                     })}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                   </div>
                 </div>
               </div>
